@@ -1,0 +1,47 @@
+:host {
+  display: block;
+}
+
+.session-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 1rem;
+}
+
+.tool-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--surface);
+}
+
+.tool-panel h3,
+.lookup-section h3,
+.session-summary h3,
+.session-summary h4 {
+  margin: 0 0 0.85rem;
+}
+
+.lookup-section {
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.session-summary {
+  margin-top: 1rem;
+}
+
+.summary-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 980px) {
+  .session-layout,
+  .summary-columns {
+    grid-template-columns: 1fr;
+  }
+}

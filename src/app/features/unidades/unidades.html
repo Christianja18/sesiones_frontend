@@ -1,0 +1,175 @@
+<div class="module-header">
+  <div>
+    <p class="eyebrow">Modulo 2</p>
+    <h2>Unidad de aprendizaje</h2>
+  </div>
+  @if (lookupResult || result) {
+    <span class="status-pill">ID {{ (lookupResult || result)?.id }}</span>
+  }
+</div>
+
+<div class="module-grid">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    @if (catalogError) {
+      <div class="alert error field-wide" role="alert">
+        <strong>{{ catalogError.message }}</strong>
+        @for (detail of catalogError.details; track detail) {
+          <span>{{ detail }}</span>
+        }
+      </div>
+    }
+
+    <label class="field field-wide">
+      <span>Titulo</span>
+      <input type="text" formControlName="titulo" maxlength="180" />
+      @if (fieldInvalid('titulo')) {
+        <small class="validation-message">{{ errorMessage('titulo') }}</small>
+      }
+    </label>
+
+    <label class="field">
+      <span>Nivel</span>
+      <select formControlName="nivelId" [disabled]="catalogLoading" (change)="onNivelChange()">
+        <option value="">Seleccionar</option>
+        @for (nivel of niveles; track nivel.id) {
+          <option [value]="nivel.id">{{ nivel.nombre }}</option>
+        }
+      </select>
+      @if (fieldInvalid('nivelId')) {
+        <small class="validation-message">{{ errorMessage('nivelId') }}</small>
+      }
+    </label>
+
+    <label class="field">
+      <span>Grado ID</span>
+      <select formControlName="gradoId" [disabled]="catalogLoading">
+        <option value="">Seleccionar</option>
+        @for (grado of grados; track grado.id) {
+          <option [value]="grado.id">{{ grado.nombre }}</option>
+        }
+      </select>
+      @if (fieldInvalid('gradoId')) {
+        <small class="validation-message">{{ errorMessage('gradoId') }}</small>
+      }
+    </label>
+
+    <label class="field">
+      <span>Area</span>
+      <select formControlName="areaId" [disabled]="catalogLoading">
+        <option value="">Seleccionar</option>
+        @for (area of areas; track area.id) {
+          <option [value]="area.id">{{ area.nombre }}</option>
+        }
+      </select>
+      @if (fieldInvalid('areaId')) {
+        <small class="validation-message">{{ errorMessage('areaId') }}</small>
+      }
+    </label>
+
+    <div class="field field-wide">
+      <app-catalog-picker
+        label="Docente"
+        kind="docentes"
+        [selectedOptions]="selectedDocenteOptions"
+        (selectionChange)="selectDocente($event)"
+      />
+      @if (fieldInvalid('docenteId')) {
+        <small class="validation-message">{{ errorMessage('docenteId') }}</small>
+      }
+    </div>
+
+    <label class="field">
+      <span>Fecha inicio</span>
+      <input type="date" formControlName="fechaInicio" />
+      @if (fieldInvalid('fechaInicio')) {
+        <small class="validation-message">{{ errorMessage('fechaInicio') }}</small>
+      }
+    </label>
+
+    <label class="field">
+      <span>Fecha fin</span>
+      <input type="date" formControlName="fechaFin" />
+      @if (fieldInvalid('fechaFin')) {
+        <small class="validation-message">{{ errorMessage('fechaFin') }}</small>
+      }
+    </label>
+
+    @if (formRangeInvalid()) {
+      <p class="validation-message field-wide">La fecha fin no puede ser menor que la fecha inicio.</p>
+    }
+
+    <label class="field field-wide">
+      <span>Contexto del aula</span>
+      <textarea formControlName="contexto" rows="4" maxlength="1200"></textarea>
+      @if (fieldInvalid('contexto')) {
+        <small class="validation-message">{{ errorMessage('contexto') }}</small>
+      }
+    </label>
+
+    <div class="actions field-wide">
+      <button class="button primary" type="submit" [disabled]="loading">
+        {{ loading ? 'Guardando...' : 'Crear unidad' }}
+      </button>
+    </div>
+  </form>
+
+  <aside class="side-panel">
+    <form class="lookup-form" [formGroup]="lookupForm" (ngSubmit)="findUnidad()" novalidate>
+      <label class="field">
+        <span>Consultar unidad ID</span>
+        <input type="number" formControlName="unidadId" min="1" />
+        @if (lookupInvalid()) {
+          <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
+        }
+      </label>
+      <button class="button secondary" type="submit" [disabled]="lookupLoading">
+        {{ lookupLoading ? 'Consultando...' : 'Consultar' }}
+      </button>
+    </form>
+  </aside>
+</div>
+
+@if (apiError) {
+  <div class="alert error" role="alert">
+    <strong>{{ apiError.message }}</strong>
+    @for (detail of apiError.details; track detail) {
+      <span>{{ detail }}</span>
+    }
+  </div>
+}
+
+@if (lookupError) {
+  <div class="alert error" role="alert">
+    <strong>{{ lookupError.message }}</strong>
+    @for (detail of lookupError.details; track detail) {
+      <span>{{ detail }}</span>
+    }
+  </div>
+}
+
+@if (lookupResult || result; as unidad) {
+  <div class="result-panel" aria-live="polite">
+    <dl class="data-list">
+      <div>
+        <dt>Unidad</dt>
+        <dd>{{ unidad.titulo }}</dd>
+      </div>
+      <div>
+        <dt>Grado</dt>
+        <dd>{{ unidad.nivelNombre }} / {{ unidad.gradoNombre }} / {{ unidad.cicloNombre }}</dd>
+      </div>
+      <div>
+        <dt>Area</dt>
+        <dd>{{ unidad.areaNombre }}</dd>
+      </div>
+      <div>
+        <dt>Docente</dt>
+        <dd>{{ unidad.docenteNombre }}</dd>
+      </div>
+      <div>
+        <dt>Fechas</dt>
+        <dd>{{ unidad.fechaInicio }} a {{ unidad.fechaFin }}</dd>
+      </div>
+    </dl>
+  </div>
+}

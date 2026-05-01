@@ -1,0 +1,121 @@
+<div class="module-header">
+  <div>
+    <p class="eyebrow">Modulo 5</p>
+    <h2>Documentos curriculares</h2>
+  </div>
+  @if (result) {
+    <span class="status-pill">{{ result.estado }}</span>
+  }
+</div>
+
+<div class="module-grid">
+  <form class="form-grid" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <label class="field">
+      <span>Tipo</span>
+      <select formControlName="tipo">
+        <option value="curriculo">Curriculo</option>
+        <option value="programa">Programa</option>
+      </select>
+      @if (fieldInvalid('tipo')) {
+        <small class="validation-message">{{ errorMessage('tipo') }}</small>
+      }
+    </label>
+
+    <label class="field">
+      <span>Nombre PDF</span>
+      <input type="text" formControlName="nombreArchivo" maxlength="255" />
+      @if (fieldInvalid('nombreArchivo')) {
+        <small class="validation-message">{{ errorMessage('nombreArchivo') }}</small>
+      }
+    </label>
+
+    <label class="field field-wide">
+      <span>URL del PDF</span>
+      <input type="url" formControlName="archivoUrl" maxlength="500" />
+      @if (fieldInvalid('archivoUrl')) {
+        <small class="validation-message">{{ errorMessage('archivoUrl') }}</small>
+      }
+    </label>
+
+    <div class="actions field-wide">
+      <button class="button primary" type="submit" [disabled]="loading">
+        {{ loading ? 'Registrando...' : 'Registrar documento' }}
+      </button>
+      <button class="button secondary" type="button" [disabled]="!result || processing" (click)="processCurrent()">
+        {{ processing ? 'Procesando...' : 'Procesar' }}
+      </button>
+    </div>
+  </form>
+
+  <aside class="side-panel">
+    <form class="lookup-form" [formGroup]="lookupForm" (ngSubmit)="findDocumento()" novalidate>
+      <label class="field">
+        <span>Consultar documento ID</span>
+        <input type="number" formControlName="documentoId" min="1" />
+        @if (lookupInvalid()) {
+          <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
+        }
+      </label>
+      <button class="button secondary" type="submit" [disabled]="lookupLoading">
+        {{ lookupLoading ? 'Consultando...' : 'Consultar' }}
+      </button>
+    </form>
+  </aside>
+</div>
+
+@if (apiError) {
+  <div class="alert error" role="alert">
+    <strong>{{ apiError.message }}</strong>
+    @for (detail of apiError.details; track detail) {
+      <span>{{ detail }}</span>
+    }
+  </div>
+}
+
+@if (processError) {
+  <div class="alert error" role="alert">
+    <strong>{{ processError.message }}</strong>
+    @for (detail of processError.details; track detail) {
+      <span>{{ detail }}</span>
+    }
+  </div>
+}
+
+@if (lookupError) {
+  <div class="alert error" role="alert">
+    <strong>{{ lookupError.message }}</strong>
+    @for (detail of lookupError.details; track detail) {
+      <span>{{ detail }}</span>
+    }
+  </div>
+}
+
+@if (result) {
+  <div class="result-panel" aria-live="polite">
+    <dl class="data-list">
+      <div>
+        <dt>ID</dt>
+        <dd>{{ result.id }}</dd>
+      </div>
+      <div>
+        <dt>Tipo</dt>
+        <dd>{{ result.tipo }}</dd>
+      </div>
+      <div>
+        <dt>Archivo</dt>
+        <dd>{{ result.nombreArchivo }}</dd>
+      </div>
+      <div>
+        <dt>Estado</dt>
+        <dd>{{ result.estado }}</dd>
+      </div>
+      <div>
+        <dt>URL</dt>
+        <dd><a [href]="result.archivoUrl" target="_blank" rel="noopener noreferrer">{{ result.archivoUrl }}</a></dd>
+      </div>
+    </dl>
+    @if (result.errorDetalle) {
+      <p class="validation-message">{{ result.errorDetalle }}</p>
+    }
+  </div>
+}

@@ -1,0 +1,113 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+}
+
+.app-shell {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem clamp(1rem, 3vw, 2.5rem);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: clamp(1.65rem, 3vw, 2.4rem);
+  font-weight: 760;
+  letter-spacing: 0;
+}
+
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.app-nav button {
+  min-height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 0.8rem;
+  color: var(--ink);
+  background: var(--surface-muted);
+  font-weight: 650;
+}
+
+.app-nav button span {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.app-nav button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.app-nav button:hover,
+.app-nav button:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid rgba(34, 61, 119, 0.16);
+  outline-offset: 1px;
+}
+
+.state-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.85rem clamp(1rem, 3vw, 2.5rem);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-muted);
+}
+
+.state-strip span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.workspace {
+  padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.work-section {
+  width: min(1180px, 100%);
+  min-width: 0;
+  margin: 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: clamp(1rem, 2vw, 1.25rem);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(34, 45, 38, 0.06);
+}
+
+.frame-section {
+  min-height: 460px;
+}
+
+@media (max-width: 980px) {
+  .app-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-nav {
+    justify-content: flex-start;
+  }
+}

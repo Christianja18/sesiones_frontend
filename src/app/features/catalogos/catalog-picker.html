@@ -1,0 +1,71 @@
+<div class="catalog-picker">
+  <label class="field picker-field">
+    <span>{{ label }}</span>
+    <div class="picker-control">
+      <input type="text" [value]="selectionText()" disabled />
+      <button class="button secondary" type="button" [disabled]="disabled" (click)="openFrame()">
+        Buscar
+      </button>
+      @if (selectedOptions.length) {
+        <button class="button ghost" type="button" [disabled]="disabled" (click)="clearSelection()">
+          Limpiar
+        </button>
+      }
+    </div>
+  </label>
+
+  @if (frameOpen) {
+    <div class="frame-backdrop" role="presentation">
+      <section class="search-frame" role="dialog" aria-modal="true" [attr.aria-label]="label">
+        <header class="search-frame-header">
+          <div>
+            <p class="eyebrow">Busqueda</p>
+            <h3>{{ label }}</h3>
+          </div>
+          <button class="icon-button" type="button" aria-label="Cerrar" (click)="closeFrame()">X</button>
+        </header>
+
+        <label class="field field-wide">
+          <span>Filtro</span>
+          <input type="search" [(ngModel)]="searchText" />
+        </label>
+
+        @if (apiError) {
+          <div class="alert error" role="alert">
+            <strong>{{ apiError.message }}</strong>
+            @for (detail of apiError.details; track detail) {
+              <span>{{ detail }}</span>
+            }
+          </div>
+        }
+
+        @if (loading) {
+          <p class="empty-state">Cargando...</p>
+        } @else if (filteredOptions().length) {
+          <div class="option-list">
+            @for (option of filteredOptions(); track option.id) {
+              <button
+                type="button"
+                class="option-row"
+                [class.selected]="isTempSelected(option)"
+                (click)="toggleOption(option)"
+              >
+                <span class="option-id">{{ option.id }}</span>
+                <span>{{ option.nombre }}</span>
+              </button>
+            }
+          </div>
+        } @else {
+          <p class="empty-state">Sin resultados.</p>
+        }
+
+        @if (multi) {
+          <footer class="search-frame-actions">
+            <button class="button secondary" type="button" (click)="closeFrame()">Cancelar</button>
+            <button class="button primary" type="button" (click)="applyMultiSelection()">Aplicar</button>
+          </footer>
+        }
+      </section>
+    </div>
+  }
+</div>

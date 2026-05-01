@@ -1,0 +1,149 @@
+<div class="module-header">
+  <div>
+    <p class="eyebrow">Modulo 3</p>
+    <h2>Contexto curricular</h2>
+  </div>
+  @if (context) {
+    <span class="status-pill">{{ context.gradoNombre }} / {{ context.areaNombre }}</span>
+  }
+</div>
+
+<form class="form-grid" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  @if (catalogError) {
+    <div class="alert error field-wide" role="alert">
+      <strong>{{ catalogError.message }}</strong>
+      @for (detail of catalogError.details; track detail) {
+        <span>{{ detail }}</span>
+      }
+    </div>
+  }
+
+  <label class="field">
+    <span>Nivel</span>
+    <select formControlName="nivelId" [disabled]="catalogLoading" (change)="onNivelChange()">
+      <option value="">Seleccionar</option>
+      @for (nivel of niveles; track nivel.id) {
+        <option [value]="nivel.id">{{ nivel.nombre }}</option>
+      }
+    </select>
+    @if (fieldInvalid('nivelId')) {
+      <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
+    }
+  </label>
+
+  <label class="field">
+    <span>Grado</span>
+    <select formControlName="gradoId" [disabled]="catalogLoading">
+      <option value="">Seleccionar</option>
+      @for (grado of grados; track grado.id) {
+        <option [value]="grado.id">{{ grado.nombre }}</option>
+      }
+    </select>
+    @if (fieldInvalid('gradoId')) {
+      <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
+    }
+  </label>
+
+  <label class="field">
+    <span>Area</span>
+    <select formControlName="areaId" [disabled]="catalogLoading" (change)="onAreaChange()">
+      <option value="">Seleccionar</option>
+      @for (area of areas; track area.id) {
+        <option [value]="area.id">{{ area.nombre }}</option>
+      }
+    </select>
+    @if (fieldInvalid('areaId')) {
+      <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
+    }
+  </label>
+
+  <div class="field">
+    <app-catalog-picker
+      label="Competencia"
+      kind="competencias"
+      [filters]="{ areaId: selectedAreaId() }"
+      [selectedOptions]="selectedCompetenciaOptions"
+      (selectionChange)="selectCompetencia($event)"
+    />
+    @if (fieldInvalid('competenciaId')) {
+      <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
+    }
+  </div>
+
+  <div class="actions field-wide">
+    <button class="button primary" type="submit" [disabled]="loading">
+      {{ loading ? 'Consultando...' : 'Obtener contexto' }}
+    </button>
+  </div>
+</form>
+
+@if (apiError) {
+  <div class="alert error" role="alert">
+    <strong>{{ apiError.message }}</strong>
+    @for (detail of apiError.details; track detail) {
+      <span>{{ detail }}</span>
+    }
+  </div>
+}
+
+@if (context) {
+  <div class="result-panel context-grid" aria-live="polite">
+    <dl class="data-list">
+      <div>
+        <dt>Nivel</dt>
+        <dd>{{ context.nivelNombre }}</dd>
+      </div>
+      <div>
+        <dt>Grado</dt>
+        <dd>{{ context.gradoNombre }} / {{ context.cicloNombre || context.cicloId }}</dd>
+      </div>
+      <div>
+        <dt>Area</dt>
+        <dd>{{ context.areaNombre }}</dd>
+      </div>
+      <div>
+        <dt>Competencia</dt>
+        <dd>{{ context.competenciaDescripcion }}</dd>
+      </div>
+    </dl>
+
+    <section>
+      <h3>Capacidades</h3>
+      @if (context.capacidades.length) {
+        <ul class="reference-list">
+          @for (item of context.capacidades; track item.id) {
+            <li><span>{{ item.id }}</span>{{ item.descripcion }}</li>
+          }
+        </ul>
+      } @else {
+        <p class="empty-state">Sin capacidades para la combinacion consultada.</p>
+      }
+    </section>
+
+    <section>
+      <h3>Estandares</h3>
+      @if (context.estandares.length) {
+        <ul class="reference-list">
+          @for (item of context.estandares; track item.id) {
+            <li><span>{{ item.id }}</span>{{ item.descripcion }}</li>
+          }
+        </ul>
+      } @else {
+        <p class="empty-state">Sin estandares para la combinacion consultada.</p>
+      }
+    </section>
+
+    <section>
+      <h3>Desempenos</h3>
+      @if (context.desempenos.length) {
+        <ul class="reference-list">
+          @for (item of context.desempenos; track item.id) {
+            <li><span>{{ item.id }}</span>{{ item.descripcion }}</li>
+          }
+        </ul>
+      } @else {
+        <p class="empty-state">Sin desempenos para la combinacion consultada.</p>
+      }
+    </section>
+  </div>
+}

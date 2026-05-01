@@ -1,0 +1,391 @@
+<div class="module-header">
+  <div>
+    <p class="eyebrow">Modulo 4</p>
+    <h2>Sesion de aprendizaje</h2>
+  </div>
+  @if (lookupResult || saved) {
+    <span class="status-pill">ID {{ (lookupResult || saved)?.id }}</span>
+  }
+</div>
+
+<div class="session-layout">
+  <section class="tool-panel">
+    <h3>Generar borrador</h3>
+    <form class="form-grid" [formGroup]="generateForm" (ngSubmit)="generate()" novalidate>
+      @if (catalogError) {
+        <div class="alert error field-wide" role="alert">
+          <strong>{{ catalogError.message }}</strong>
+          @for (detail of catalogError.details; track detail) {
+            <span>{{ detail }}</span>
+          }
+        </div>
+      }
+
+      <fieldset class="segmented field-wide">
+        <legend>Origen</legend>
+        @for (mode of generationModes; track mode.value) {
+          <label>
+            <input type="radio" formControlName="mode" [value]="mode.value" />
+            <span>{{ mode.label }}</span>
+          </label>
+        }
+      </fieldset>
+
+      <label class="field">
+        <span>Nivel</span>
+        <select formControlName="nivelId" [disabled]="catalogLoading" (change)="onGenerateNivelChange()">
+          <option value="">Seleccionar</option>
+          @for (nivel of niveles; track nivel.id) {
+            <option [value]="nivel.id">{{ nivel.nombre }}</option>
+          }
+        </select>
+        @if (generateFieldInvalid('nivelId')) {
+          <small class="validation-message">{{ simpleError('generate', 'nivelId') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Grado</span>
+        <select formControlName="gradoId" [disabled]="catalogLoading">
+          <option value="">Seleccionar</option>
+          @for (grado of grados; track grado.id) {
+            <option [value]="grado.id">{{ grado.nombre }}</option>
+          }
+        </select>
+        @if (generateFieldInvalid('gradoId')) {
+          <small class="validation-message">{{ simpleError('generate', 'gradoId') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Area</span>
+        <select formControlName="areaId" [disabled]="catalogLoading" (change)="onGenerateAreaChange()">
+          <option value="">Seleccionar</option>
+          @for (area of areas; track area.id) {
+            <option [value]="area.id">{{ area.nombre }}</option>
+          }
+        </select>
+        @if (generateFieldInvalid('areaId')) {
+          <small class="validation-message">{{ simpleError('generate', 'areaId') }}</small>
+        }
+      </label>
+
+      <div class="field">
+        <app-catalog-picker
+          label="Competencia"
+          kind="competencias"
+          [filters]="{ areaId: generateAreaId() }"
+          [selectedOptions]="selectedGenerateCompetenciaOptions"
+          (selectionChange)="selectGenerateCompetencia($event)"
+        />
+        @if (generateFieldInvalid('competenciaId')) {
+          <small class="validation-message">{{ simpleError('generate', 'competenciaId') }}</small>
+        }
+      </div>
+
+      <label class="field field-wide">
+        <span>Tema</span>
+        <input type="text" formControlName="tema" maxlength="180" />
+        @if (generateFieldInvalid('tema')) {
+          <small class="validation-message">{{ simpleError('generate', 'tema') }}</small>
+        }
+      </label>
+
+      <label class="field field-wide">
+        <span>Contexto</span>
+        <textarea formControlName="contexto" rows="4" maxlength="1200"></textarea>
+        @if (generateFieldInvalid('contexto')) {
+          <small class="validation-message">{{ simpleError('generate', 'contexto') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Duracion</span>
+        <input type="number" formControlName="duracionMinutos" min="1" max="480" />
+        @if (generateFieldInvalid('duracionMinutos')) {
+          <small class="validation-message">{{ simpleError('generate', 'duracionMinutos') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Alternativa</span>
+        <input type="number" formControlName="alternativa" min="1" max="20" />
+        @if (generateFieldInvalid('alternativa')) {
+          <small class="validation-message">{{ simpleError('generate', 'alternativa') }}</small>
+        }
+      </label>
+
+      <div class="actions field-wide">
+        <button class="button primary" type="submit" [disabled]="generating">
+          {{ generating ? 'Generando...' : 'Generar sesion' }}
+        </button>
+      </div>
+    </form>
+
+    @if (generateError) {
+      <div class="alert error" role="alert">
+        <strong>{{ generateError.message }}</strong>
+        @for (detail of generateError.details; track detail) {
+          <span>{{ detail }}</span>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="tool-panel">
+    <h3>Guardar sesion</h3>
+    <form class="form-grid" [formGroup]="saveForm" (ngSubmit)="save()" novalidate>
+      <label class="field">
+        <span>Unidad ID</span>
+        <input type="number" formControlName="unidadId" min="1" />
+        @if (saveFieldInvalid('unidadId')) {
+          <small class="validation-message">{{ simpleError('save', 'unidadId') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Fecha</span>
+        <input type="date" formControlName="fecha" />
+        @if (saveFieldInvalid('fecha')) {
+          <small class="validation-message">{{ simpleError('save', 'fecha') }}</small>
+        }
+      </label>
+
+      <label class="field field-wide">
+        <span>Titulo</span>
+        <input type="text" formControlName="titulo" maxlength="180" />
+        @if (saveFieldInvalid('titulo')) {
+          <small class="validation-message">{{ simpleError('save', 'titulo') }}</small>
+        }
+      </label>
+
+      <label class="field field-wide">
+        <span>Proposito</span>
+        <textarea formControlName="proposito" rows="3" maxlength="1500"></textarea>
+        @if (saveFieldInvalid('proposito')) {
+          <small class="validation-message">{{ simpleError('save', 'proposito') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Duracion</span>
+        <input type="number" formControlName="duracionMinutos" min="1" max="480" />
+        @if (saveFieldInvalid('duracionMinutos')) {
+          <small class="validation-message">{{ simpleError('save', 'duracionMinutos') }}</small>
+        }
+      </label>
+
+      <label class="checkbox-field">
+        <input type="checkbox" formControlName="generadoPorIa" />
+        <span>Generado por IA</span>
+      </label>
+
+      <div class="field field-wide">
+        <app-catalog-picker
+          label="Competencia"
+          kind="competencias"
+          [multi]="true"
+          [filters]="{ areaId: saveAreaId() }"
+          [selectedOptions]="selectedSaveCompetencias"
+          (selectionChange)="selectSaveCompetencias($event)"
+        />
+        @if (saveFieldInvalid('competenciaIds')) {
+          <small class="validation-message">{{ simpleError('save', 'competenciaIds') }}</small>
+        }
+      </div>
+
+      <div class="field">
+        <app-catalog-picker
+          label="Capacidad"
+          kind="capacidades"
+          [multi]="true"
+          [filters]="{ competenciaId: primarySaveCompetenciaId() }"
+          [selectedOptions]="selectedSaveCapacidades"
+          [disabled]="!primarySaveCompetenciaId()"
+          (selectionChange)="selectSaveCapacidades($event)"
+        />
+        @if (saveFieldInvalid('capacidadIds')) {
+          <small class="validation-message">{{ simpleError('save', 'capacidadIds') }}</small>
+        }
+      </div>
+
+      <div class="field">
+        <app-catalog-picker
+          label="Desempeno"
+          kind="desempenos"
+          [multi]="true"
+          [filters]="{ gradoId: saveGradoId(), competenciaId: primarySaveCompetenciaId() }"
+          [selectedOptions]="selectedSaveDesempenos"
+          [disabled]="!saveGradoId() || !primarySaveCompetenciaId()"
+          (selectionChange)="selectSaveDesempenos($event)"
+        />
+        @if (saveFieldInvalid('desempenoIds')) {
+          <small class="validation-message">{{ simpleError('save', 'desempenoIds') }}</small>
+        }
+      </div>
+
+      <label class="field">
+        <span>Inicio</span>
+        <textarea formControlName="inicio" rows="4"></textarea>
+        @if (saveFieldInvalid('inicio')) {
+          <small class="validation-message">{{ simpleError('save', 'inicio') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Desarrollo</span>
+        <textarea formControlName="desarrollo" rows="4"></textarea>
+        @if (saveFieldInvalid('desarrollo')) {
+          <small class="validation-message">{{ simpleError('save', 'desarrollo') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Cierre</span>
+        <textarea formControlName="cierre" rows="4"></textarea>
+        @if (saveFieldInvalid('cierre')) {
+          <small class="validation-message">{{ simpleError('save', 'cierre') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Criterios</span>
+        <textarea formControlName="criteriosEvaluacion" rows="4"></textarea>
+        @if (saveFieldInvalid('criteriosEvaluacion')) {
+          <small class="validation-message">{{ simpleError('save', 'criteriosEvaluacion') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Evidencias</span>
+        <textarea formControlName="evidencias" rows="4"></textarea>
+        @if (saveFieldInvalid('evidencias')) {
+          <small class="validation-message">{{ simpleError('save', 'evidencias') }}</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Instrumento</span>
+        <select formControlName="instrumentoTipo">
+          <option value="rubrica">Rubrica</option>
+          <option value="lista_cotejo">Lista de cotejo</option>
+        </select>
+        @if (saveFieldInvalid('instrumentoTipo')) {
+          <small class="validation-message">{{ simpleError('save', 'instrumentoTipo') }}</small>
+        }
+      </label>
+
+      <label class="field field-wide">
+        <span>Detalle de instrumento</span>
+        <textarea formControlName="instrumentoDetalle" rows="4"></textarea>
+        @if (saveFieldInvalid('instrumentoDetalle')) {
+          <small class="validation-message">{{ simpleError('save', 'instrumentoDetalle') }}</small>
+        }
+      </label>
+
+      <div class="actions field-wide">
+        <button class="button primary" type="submit" [disabled]="saving">
+          {{ saving ? 'Guardando...' : 'Guardar sesion' }}
+        </button>
+      </div>
+    </form>
+
+    @if (saveError) {
+      <div class="alert error" role="alert">
+        <strong>{{ saveError.message }}</strong>
+        @for (detail of saveError.details; track detail) {
+          <span>{{ detail }}</span>
+        }
+      </div>
+    }
+  </section>
+</div>
+
+<section class="lookup-section">
+  <form class="lookup-form" [formGroup]="lookupForm" (ngSubmit)="findSesion()" novalidate>
+    <label class="field">
+      <span>Consultar sesion ID</span>
+      <input type="number" formControlName="sesionId" min="1" />
+      @if (lookupInvalid()) {
+        <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
+      }
+    </label>
+    <button class="button secondary" type="submit" [disabled]="lookupLoading">
+      {{ lookupLoading ? 'Consultando...' : 'Consultar' }}
+    </button>
+  </form>
+
+  @if (lookupError) {
+    <div class="alert error" role="alert">
+      <strong>{{ lookupError.message }}</strong>
+      @for (detail of lookupError.details; track detail) {
+        <span>{{ detail }}</span>
+      }
+    </div>
+  }
+</section>
+
+@if (draft) {
+  <section class="result-panel session-summary" aria-live="polite">
+    <h3>Borrador</h3>
+    <dl class="data-list">
+      <div>
+        <dt>Titulo</dt>
+        <dd>{{ draft.titulo }}</dd>
+      </div>
+      <div>
+        <dt>Duracion</dt>
+        <dd>{{ draft.duracionMinutos }} min</dd>
+      </div>
+      <div>
+        <dt>Actividades</dt>
+        <dd>{{ totalActivities(draft) }}</dd>
+      </div>
+    </dl>
+    <p>{{ draft.proposito }}</p>
+    <div class="summary-columns">
+      <div>
+        <h4>Competencias</h4>
+        <ul class="reference-list">
+          @for (item of draft.competencias; track item.id) {
+            <li><span>{{ item.id }}</span>{{ item.descripcion }}</li>
+          }
+        </ul>
+      </div>
+      <div>
+        <h4>Criterios</h4>
+        <ul class="plain-list">
+          @for (item of draft.criteriosEvaluacion; track item) {
+            <li>{{ item }}</li>
+          }
+        </ul>
+      </div>
+    </div>
+  </section>
+}
+
+@if (lookupResult || saved; as session) {
+  <section class="result-panel session-summary" aria-live="polite">
+    <h3>Sesion registrada</h3>
+    <dl class="data-list">
+      <div>
+        <dt>ID</dt>
+        <dd>{{ session.id }}</dd>
+      </div>
+      <div>
+        <dt>Unidad</dt>
+        <dd>{{ session.unidadTitulo || session.unidadId }}</dd>
+      </div>
+      <div>
+        <dt>Fecha</dt>
+        <dd>{{ session.fecha || 'Sin fecha' }}</dd>
+      </div>
+      <div>
+        <dt>Duracion</dt>
+        <dd>{{ session.duracionMinutos }} min</dd>
+      </div>
+    </dl>
+    <h4>{{ session.titulo }}</h4>
+    <p>{{ session.proposito }}</p>
+  </section>
+}

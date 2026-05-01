@@ -1,0 +1,8 @@
+:host {
+  display: block;
+}
+
+.result-panel a {
+  color: var(--accent-2);
+  overflow-wrap: anywhere;
+}
