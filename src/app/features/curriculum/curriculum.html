@@ -20,7 +20,7 @@
 
   <label class="field">
     <span>Nivel</span>
-    <select formControlName="nivelId" [disabled]="catalogLoading" (change)="onNivelChange()">
+    <select formControlName="nivelId" (change)="onNivelChange()">
       <option value="">Seleccionar</option>
       @for (nivel of niveles; track nivel.id) {
         <option [value]="nivel.id">{{ nivel.nombre }}</option>
@@ -33,7 +33,7 @@
 
   <label class="field">
     <span>Grado</span>
-    <select formControlName="gradoId" [disabled]="catalogLoading">
+    <select formControlName="gradoId" (change)="onGradoChange()">
       <option value="">Seleccionar</option>
       @for (grado of grados; track grado.id) {
         <option [value]="grado.id">{{ grado.nombre }}</option>
@@ -46,7 +46,7 @@
 
   <label class="field">
     <span>Area</span>
-    <select formControlName="areaId" [disabled]="catalogLoading" (change)="onAreaChange()">
+    <select formControlName="areaId" (change)="onAreaChange()">
       <option value="">Seleccionar</option>
       @for (area of areas; track area.id) {
         <option [value]="area.id">{{ area.nombre }}</option>
@@ -63,6 +63,7 @@
       kind="competencias"
       [filters]="{ areaId: selectedAreaId() }"
       [selectedOptions]="selectedCompetenciaOptions"
+      [disabled]="!canSearchCompetencia()"
       (selectionChange)="selectCompetencia($event)"
     />
     @if (fieldInvalid('competenciaId')) {
@@ -71,7 +72,7 @@
   </div>
 
   <div class="actions field-wide">
-    <button class="button primary" type="submit" [disabled]="loading">
+    <button class="button primary" type="submit" [disabled]="loading || catalogLoading || !canSubmit()">
       {{ loading ? 'Consultando...' : 'Obtener contexto' }}
     </button>
   </div>

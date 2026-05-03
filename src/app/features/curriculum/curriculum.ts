@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { finalize, forkJoin } from 'rxjs';
 
 import { ApiErrorService } from '../../core/services/api-error.service';
 import { CatalogOptionResponse, CurriculumContextRequest, CurriculumContextResponse, DisplayApiError, UnidadResponse } from '../../core/models/api.models';
@@ -26,13 +27,13 @@ export class Curriculum implements OnInit, OnChanges {
 
   readonly form = this.fb.group({
     nivelId: ['', [Validators.required, positiveIntegerValidator]],
-    gradoId: ['', [Validators.required, positiveIntegerValidator]],
-    areaId: ['', [Validators.required, positiveIntegerValidator]],
-    competenciaId: ['', [Validators.required, positiveIntegerValidator]],
+    gradoId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
+    areaId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
+    competenciaId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
   });
 
   loading = false;
-  catalogLoading = false;
+  catalogLoading = true;
   niveles: CatalogOptionResponse[] = [];
   grados: CatalogOptionResponse[] = [];
   areas: CatalogOptionResponse[] = [];
@@ -40,9 +41,10 @@ export class Curriculum implements OnInit, OnChanges {
   context: CurriculumContextResponse | null = null;
   apiError: DisplayApiError | null = null;
   catalogError: DisplayApiError | null = null;
+  private catalogsReady = false;
 
   ngOnInit(): void {
-    this.loadBaseCatalogs();
+    setTimeout(() => this.loadBaseCatalogs());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -51,19 +53,34 @@ export class Curriculum implements OnInit, OnChanges {
         nivelId: String(this.unidad.nivelId),
         gradoId: String(this.unidad.gradoId),
         areaId: String(this.unidad.areaId),
-      });
-      this.loadGrados();
+      }, { emitEvent: false });
+      this.applyCatalogControlState();
+      if (this.catalogsReady) {
+        setTimeout(() => this.loadGrados());
+      }
     }
   }
 
   onNivelChange(): void {
-    this.form.patchValue({ gradoId: '' });
-    this.loadGrados();
+    this.selectedCompetenciaOptions = [];
+    this.form.patchValue({ gradoId: '', areaId: '', competenciaId: '' }, { emitEvent: false });
+    this.grados = [];
+    this.applyCatalogControlState();
+    if (this.hasSelected('nivelId')) {
+      this.loadGrados();
+    }
+  }
+
+  onGradoChange(): void {
+    this.selectedCompetenciaOptions = [];
+    this.form.patchValue({ areaId: '', competenciaId: '' }, { emitEvent: false });
+    this.applyCatalogControlState();
   }
 
   onAreaChange(): void {
     this.selectedCompetenciaOptions = [];
-    this.form.patchValue({ competenciaId: '' });
+    this.form.patchValue({ competenciaId: '' }, { emitEvent: false });
+    this.applyCatalogControlState();
   }
 
   selectCompetencia(options: CatalogOptionResponse[]): void {
@@ -75,10 +92,18 @@ export class Curriculum implements OnInit, OnChanges {
     return this.numberOrNull('areaId');
   }
 
+  canSearchCompetencia(): boolean {
+    return this.hasSelected('areaId') && this.form.get('competenciaId')?.enabled === true;
+  }
+
+  canSubmit(): boolean {
+    return this.hasRequiredCatalogSelection() && this.form.valid;
+  }
+
   submit(): void {
     this.apiError = null;
     this.context = null;
-    if (this.form.invalid) {
+    if (!this.hasRequiredCatalogSelection() || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -120,41 +145,52 @@ export class Curriculum implements OnInit, OnChanges {
   private loadBaseCatalogs(): void {
     this.catalogLoading = true;
     this.catalogError = null;
-    this.catalogosService.niveles().subscribe({
-      next: (niveles) => {
+    forkJoin({
+      niveles: this.catalogosService.niveles(),
+      areas: this.catalogosService.areas(),
+    }).subscribe({
+      next: ({ niveles, areas }) => {
         this.niveles = niveles;
-        this.loadAreas();
-      },
-      error: (error: unknown) => {
-        this.catalogError = this.apiErrorService.toDisplayError(error);
-        this.catalogLoading = false;
-      },
-    });
-  }
-
-  private loadAreas(): void {
-    this.catalogosService.areas().subscribe({
-      next: (areas) => {
         this.areas = areas;
-        this.loadGrados();
+        this.catalogsReady = true;
+        this.catalogLoading = false;
+        this.applyCatalogControlState();
+        if (this.hasSelected('nivelId')) {
+          this.loadGrados();
+        }
       },
       error: (error: unknown) => {
         this.catalogError = this.apiErrorService.toDisplayError(error);
         this.catalogLoading = false;
+        this.applyCatalogControlState();
       },
     });
   }
 
   private loadGrados(): void {
+    const nivelId = this.numberOrNull('nivelId');
+    if (!nivelId) {
+      this.grados = [];
+      this.applyCatalogControlState();
+      return;
+    }
+
     this.catalogLoading = true;
-    this.catalogosService.grados(this.numberOrNull('nivelId')).subscribe({
-      next: (grados) => {
-        this.grados = grados;
+    this.setControlDisabled('gradoId', true);
+    this.catalogosService.grados(nivelId).pipe(
+      finalize(() => {
         this.catalogLoading = false;
+        this.applyCatalogControlState();
+      }),
+    ).subscribe({
+      next: (grados) => {
+        if (this.numberOrNull('nivelId') !== nivelId) {
+          return;
+        }
+        this.grados = grados;
       },
       error: (error: unknown) => {
         this.catalogError = this.apiErrorService.toDisplayError(error);
-        this.catalogLoading = false;
       },
     });
   }
@@ -162,5 +198,35 @@ export class Curriculum implements OnInit, OnChanges {
   private numberOrNull(fieldName: string): number | null {
     const value = Number(this.form.get(fieldName)?.value);
     return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  private hasSelected(fieldName: string): boolean {
+    return this.numberOrNull(fieldName) !== null;
+  }
+
+  private hasRequiredCatalogSelection(): boolean {
+    return this.hasSelected('nivelId')
+      && this.hasSelected('gradoId')
+      && this.hasSelected('areaId')
+      && this.hasSelected('competenciaId');
+  }
+
+  private applyCatalogControlState(): void {
+    const hasNivel = this.hasSelected('nivelId');
+    const hasGrado = this.hasSelected('gradoId');
+    const hasArea = this.hasSelected('areaId');
+
+    this.setControlDisabled('gradoId', !hasNivel || this.catalogLoading);
+    this.setControlDisabled('areaId', !hasNivel || !hasGrado);
+    this.setControlDisabled('competenciaId', !hasNivel || !hasGrado || !hasArea);
+  }
+
+  private setControlDisabled(fieldName: string, disabled: boolean): void {
+    const control = this.form.get(fieldName);
+    if (disabled) {
+      control?.disable({ emitEvent: false });
+      return;
+    }
+    control?.enable({ emitEvent: false });
   }
 }

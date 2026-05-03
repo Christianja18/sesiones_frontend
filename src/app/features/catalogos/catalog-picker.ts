@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { finalize, take, timeout } from 'rxjs';
 
 import { CatalogOptionResponse, DisplayApiError } from '../../core/models/api.models';
 import { ApiErrorService } from '../../core/services/api-error.service';
@@ -23,6 +24,7 @@ export class CatalogPicker {
 
   private readonly catalogosService = inject(CatalogosService);
   private readonly apiErrorService = inject(ApiErrorService);
+  private readonly requestTimeoutMs = 15000;
 
   frameOpen = false;
   loading = false;
@@ -37,19 +39,19 @@ export class CatalogPicker {
     }
 
     return this.selectedOptions
-      .map((option) => `${option.id} - ${option.nombre}`)
+      .map((option) => `${this.optionId(option)} - ${this.optionName(option)}`)
       .join(' | ');
   }
 
   openFrame(): void {
-    if (this.disabled) {
+    if (this.disabled || !this.hasRequiredFilters()) {
       return;
     }
 
     this.frameOpen = true;
     this.apiError = null;
     this.searchText = '';
-    this.tempSelectedIds = new Set(this.selectedOptions.map((option) => option.id));
+    this.tempSelectedIds = new Set(this.selectedOptions.map((option) => this.optionId(option)));
     this.loadOptions();
   }
 
@@ -63,13 +65,15 @@ export class CatalogPicker {
       return this.options;
     }
 
-    return this.options.filter((option) =>
-      option.id.toLowerCase().includes(term) || option.nombre.toLowerCase().includes(term),
-    );
+    return this.options.filter((option) => {
+      const id = this.optionId(option).toLowerCase();
+      const name = this.optionName(option).toLowerCase();
+      return id.includes(term) || name.includes(term);
+    });
   }
 
   isTempSelected(option: CatalogOptionResponse): boolean {
-    return this.tempSelectedIds.has(option.id);
+    return this.tempSelectedIds.has(this.optionId(option));
   }
 
   toggleOption(option: CatalogOptionResponse): void {
@@ -79,15 +83,16 @@ export class CatalogPicker {
       return;
     }
 
-    if (this.tempSelectedIds.has(option.id)) {
-      this.tempSelectedIds.delete(option.id);
+    const optionId = this.optionId(option);
+    if (this.tempSelectedIds.has(optionId)) {
+      this.tempSelectedIds.delete(optionId);
       return;
     }
-    this.tempSelectedIds.add(option.id);
+    this.tempSelectedIds.add(optionId);
   }
 
   applyMultiSelection(): void {
-    const selected = this.options.filter((option) => this.tempSelectedIds.has(option.id));
+    const selected = this.options.filter((option) => this.tempSelectedIds.has(this.optionId(option)));
     this.selectionChange.emit(selected);
     this.closeFrame();
   }
@@ -96,17 +101,47 @@ export class CatalogPicker {
     this.selectionChange.emit([]);
   }
 
+  optionId(option: CatalogOptionResponse): string {
+    return String(option.id ?? '').trim();
+  }
+
+  optionName(option: CatalogOptionResponse): string {
+    return String(option.nombre ?? '').trim();
+  }
+
   private loadOptions(): void {
     this.loading = true;
-    this.catalogosService.search(this.kind, this.filters).subscribe({
+    this.options = [];
+    this.catalogosService.search(this.kind, this.filters).pipe(
+      take(1),
+      timeout({ first: this.requestTimeoutMs }),
+      finalize(() => {
+        this.loading = false;
+      }),
+    ).subscribe({
       next: (options) => {
         this.options = options;
-        this.loading = false;
       },
       error: (error: unknown) => {
         this.apiError = this.apiErrorService.toDisplayError(error);
-        this.loading = false;
       },
     });
+  }
+
+  private hasRequiredFilters(): boolean {
+    if (this.kind === 'competencias') {
+      return this.hasPositiveFilter(this.filters.areaId);
+    }
+    if (this.kind === 'capacidades') {
+      return this.hasPositiveFilter(this.filters.competenciaId);
+    }
+    if (this.kind === 'desempenos') {
+      return this.hasPositiveFilter(this.filters.gradoId) && this.hasPositiveFilter(this.filters.competenciaId);
+    }
+    return true;
+  }
+
+  private hasPositiveFilter(value: number | null | undefined): boolean {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0;
   }
 }

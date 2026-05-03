@@ -33,7 +33,7 @@
 
       <label class="field">
         <span>Nivel</span>
-        <select formControlName="nivelId" [disabled]="catalogLoading" (change)="onGenerateNivelChange()">
+        <select formControlName="nivelId" (change)="onGenerateNivelChange()">
           <option value="">Seleccionar</option>
           @for (nivel of niveles; track nivel.id) {
             <option [value]="nivel.id">{{ nivel.nombre }}</option>
@@ -46,7 +46,7 @@
 
       <label class="field">
         <span>Grado</span>
-        <select formControlName="gradoId" [disabled]="catalogLoading">
+        <select formControlName="gradoId" (change)="onGenerateGradoChange()">
           <option value="">Seleccionar</option>
           @for (grado of grados; track grado.id) {
             <option [value]="grado.id">{{ grado.nombre }}</option>
@@ -59,7 +59,7 @@
 
       <label class="field">
         <span>Area</span>
-        <select formControlName="areaId" [disabled]="catalogLoading" (change)="onGenerateAreaChange()">
+        <select formControlName="areaId" (change)="onGenerateAreaChange()">
           <option value="">Seleccionar</option>
           @for (area of areas; track area.id) {
             <option [value]="area.id">{{ area.nombre }}</option>
@@ -76,6 +76,7 @@
           kind="competencias"
           [filters]="{ areaId: generateAreaId() }"
           [selectedOptions]="selectedGenerateCompetenciaOptions"
+          [disabled]="!canSearchGenerateCompetencia()"
           (selectionChange)="selectGenerateCompetencia($event)"
         />
         @if (generateFieldInvalid('competenciaId')) {
@@ -116,7 +117,7 @@
       </label>
 
       <div class="actions field-wide">
-        <button class="button primary" type="submit" [disabled]="generating">
+        <button class="button primary" type="submit" [disabled]="generating || catalogLoading || !canGenerate()">
           {{ generating ? 'Generando...' : 'Generar sesion' }}
         </button>
       </div>
@@ -187,6 +188,7 @@
           [multi]="true"
           [filters]="{ areaId: saveAreaId() }"
           [selectedOptions]="selectedSaveCompetencias"
+          [disabled]="!saveAreaId()"
           (selectionChange)="selectSaveCompetencias($event)"
         />
         @if (saveFieldInvalid('competenciaIds')) {

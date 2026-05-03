@@ -43,15 +43,15 @@
           <p class="empty-state">Cargando...</p>
         } @else if (filteredOptions().length) {
           <div class="option-list">
-            @for (option of filteredOptions(); track option.id) {
+            @for (option of filteredOptions(); track optionId(option)) {
               <button
                 type="button"
                 class="option-row"
                 [class.selected]="isTempSelected(option)"
                 (click)="toggleOption(option)"
               >
-                <span class="option-id">{{ option.id }}</span>
-                <span>{{ option.nombre }}</span>
+                <span class="option-id">{{ optionId(option) }}</span>
+                <span>{{ optionName(option) }}</span>
               </button>
             }
           </div>

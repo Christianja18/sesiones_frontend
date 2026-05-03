@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { finalize, forkJoin } from 'rxjs';
 
 import { ApiErrorService } from '../../core/services/api-error.service';
 import { CatalogOptionResponse, CreateUnidadRequest, DisplayApiError, DocenteResponse, UnidadResponse } from '../../core/models/api.models';
@@ -28,8 +29,8 @@ export class Unidades implements OnInit, OnChanges {
     {
       titulo: ['', [Validators.required, notBlankValidator, Validators.minLength(4), Validators.maxLength(180)]],
       nivelId: ['', [Validators.required, positiveIntegerValidator]],
-      gradoId: ['', [Validators.required, positiveIntegerValidator]],
-      areaId: ['', [Validators.required, positiveIntegerValidator]],
+      gradoId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
+      areaId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
       docenteId: ['', [Validators.required, positiveIntegerValidator]],
       fechaInicio: ['', [Validators.required]],
       fechaFin: ['', [Validators.required]],
@@ -44,7 +45,7 @@ export class Unidades implements OnInit, OnChanges {
 
   loading = false;
   lookupLoading = false;
-  catalogLoading = false;
+  catalogLoading = true;
   niveles: CatalogOptionResponse[] = [];
   grados: CatalogOptionResponse[] = [];
   areas: CatalogOptionResponse[] = [];
@@ -56,7 +57,7 @@ export class Unidades implements OnInit, OnChanges {
   catalogError: DisplayApiError | null = null;
 
   ngOnInit(): void {
-    this.loadBaseCatalogs();
+    setTimeout(() => this.loadBaseCatalogs());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -67,8 +68,17 @@ export class Unidades implements OnInit, OnChanges {
   }
 
   onNivelChange(): void {
-    this.form.patchValue({ gradoId: '' });
-    this.loadGrados();
+    this.form.patchValue({ gradoId: '', areaId: '' }, { emitEvent: false });
+    this.grados = [];
+    this.applyCatalogControlState();
+    if (this.hasSelected('nivelId')) {
+      this.loadGrados();
+    }
+  }
+
+  onGradoChange(): void {
+    this.form.patchValue({ areaId: '' }, { emitEvent: false });
+    this.applyCatalogControlState();
   }
 
   selectDocente(options: CatalogOptionResponse[]): void {
@@ -78,7 +88,7 @@ export class Unidades implements OnInit, OnChanges {
 
   submit(): void {
     this.apiError = null;
-    if (this.form.invalid) {
+    if (!this.hasRequiredCatalogSelection() || this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
@@ -176,41 +186,48 @@ export class Unidades implements OnInit, OnChanges {
   private loadBaseCatalogs(): void {
     this.catalogLoading = true;
     this.catalogError = null;
-    this.catalogosService.niveles().subscribe({
-      next: (niveles) => {
+    forkJoin({
+      niveles: this.catalogosService.niveles(),
+      areas: this.catalogosService.areas(),
+    }).subscribe({
+      next: ({ niveles, areas }) => {
         this.niveles = niveles;
-        this.loadAreas();
-      },
-      error: (error: unknown) => {
-        this.catalogError = this.apiErrorService.toDisplayError(error);
-        this.catalogLoading = false;
-      },
-    });
-  }
-
-  private loadAreas(): void {
-    this.catalogosService.areas().subscribe({
-      next: (areas) => {
         this.areas = areas;
-        this.loadGrados();
+        this.catalogLoading = false;
+        this.applyCatalogControlState();
       },
       error: (error: unknown) => {
         this.catalogError = this.apiErrorService.toDisplayError(error);
         this.catalogLoading = false;
+        this.applyCatalogControlState();
       },
     });
   }
 
   private loadGrados(): void {
+    const nivelId = this.numberOrNull('nivelId');
+    if (!nivelId) {
+      this.grados = [];
+      this.applyCatalogControlState();
+      return;
+    }
+
     this.catalogLoading = true;
-    this.catalogosService.grados(this.numberOrNull('nivelId')).subscribe({
-      next: (grados) => {
-        this.grados = grados;
+    this.setControlDisabled('gradoId', true);
+    this.catalogosService.grados(nivelId).pipe(
+      finalize(() => {
         this.catalogLoading = false;
+        this.applyCatalogControlState();
+      }),
+    ).subscribe({
+      next: (grados) => {
+        if (this.numberOrNull('nivelId') !== nivelId) {
+          return;
+        }
+        this.grados = grados;
       },
       error: (error: unknown) => {
         this.catalogError = this.apiErrorService.toDisplayError(error);
-        this.catalogLoading = false;
       },
     });
   }
@@ -221,13 +238,39 @@ export class Unidades implements OnInit, OnChanges {
       gradoId: String(unidad.gradoId),
       areaId: String(unidad.areaId),
       docenteId: String(unidad.docenteId),
-    });
+    }, { emitEvent: false });
     this.selectedDocenteOptions = [{ id: String(unidad.docenteId), nombre: unidad.docenteNombre }];
+    this.applyCatalogControlState();
     this.loadGrados();
   }
 
   private numberOrNull(fieldName: string): number | null {
     const value = Number(this.form.get(fieldName)?.value);
     return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  private hasSelected(fieldName: string): boolean {
+    return this.numberOrNull(fieldName) !== null;
+  }
+
+  private hasRequiredCatalogSelection(): boolean {
+    return this.hasSelected('nivelId') && this.hasSelected('gradoId') && this.hasSelected('areaId');
+  }
+
+  private applyCatalogControlState(): void {
+    const hasNivel = this.hasSelected('nivelId');
+    const hasGrado = this.hasSelected('gradoId');
+
+    this.setControlDisabled('gradoId', !hasNivel || this.catalogLoading);
+    this.setControlDisabled('areaId', !hasNivel || !hasGrado);
+  }
+
+  private setControlDisabled(fieldName: string, disabled: boolean): void {
+    const control = this.form.get(fieldName);
+    if (disabled) {
+      control?.disable({ emitEvent: false });
+      return;
+    }
+    control?.enable({ emitEvent: false });
   }
 }

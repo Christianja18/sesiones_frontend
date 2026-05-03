@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges, OnInit, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { finalize, forkJoin } from 'rxjs';
 
 import {
   CatalogOptionResponse,
@@ -52,9 +53,9 @@ export class Sesiones implements OnInit, OnChanges {
   readonly generateForm = this.fb.group({
     mode: ['plantilla', [Validators.required, enumValueValidator(['plantilla', 'ia'] as const)]],
     nivelId: ['', [Validators.required, positiveIntegerValidator]],
-    gradoId: ['', [Validators.required, positiveIntegerValidator]],
-    areaId: ['', [Validators.required, positiveIntegerValidator]],
-    competenciaId: ['', [Validators.required, positiveIntegerValidator]],
+    gradoId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
+    areaId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
+    competenciaId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
     tema: ['', [Validators.required, notBlankValidator, Validators.minLength(4), Validators.maxLength(180)]],
     contexto: ['', [Validators.required, notBlankValidator, Validators.minLength(10), Validators.maxLength(1200)]],
     duracionMinutos: ['90', [Validators.required, positiveIntegerValidator, Validators.min(1), Validators.max(480)]],
@@ -87,7 +88,7 @@ export class Sesiones implements OnInit, OnChanges {
   generating = false;
   saving = false;
   lookupLoading = false;
-  catalogLoading = false;
+  catalogLoading = true;
   niveles: CatalogOptionResponse[] = [];
   grados: CatalogOptionResponse[] = [];
   areas: CatalogOptionResponse[] = [];
@@ -102,9 +103,10 @@ export class Sesiones implements OnInit, OnChanges {
   saveError: DisplayApiError | null = null;
   lookupError: DisplayApiError | null = null;
   catalogError: DisplayApiError | null = null;
+  private catalogsReady = false;
 
   ngOnInit(): void {
-    this.loadBaseCatalogs();
+    setTimeout(() => this.loadBaseCatalogs());
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -114,9 +116,12 @@ export class Sesiones implements OnInit, OnChanges {
         gradoId: String(this.unidad.gradoId),
         areaId: String(this.unidad.areaId),
         contexto: this.unidad.contexto,
-      });
+      }, { emitEvent: false });
       this.saveForm.patchValue({ unidadId: String(this.unidad.id) });
-      this.loadGrados();
+      this.applyGenerateCatalogControlState();
+      if (this.catalogsReady) {
+        setTimeout(() => this.loadGrados());
+      }
     }
 
     if (changes['curriculum'] && this.curriculum) {
@@ -125,7 +130,7 @@ export class Sesiones implements OnInit, OnChanges {
         gradoId: String(this.curriculum.gradoId),
         areaId: String(this.curriculum.areaId),
         competenciaId: String(this.curriculum.competenciaId),
-      });
+      }, { emitEvent: false });
       const competencia = {
         id: String(this.curriculum.competenciaId),
         nombre: this.curriculum.competenciaDescripcion,
@@ -133,12 +138,32 @@ export class Sesiones implements OnInit, OnChanges {
       this.selectedGenerateCompetenciaOptions = [competencia];
       this.selectedSaveCompetencias = [competencia];
       this.saveForm.patchValue({ competenciaIds: competencia.id });
+      this.applyGenerateCatalogControlState();
     }
   }
 
   onGenerateNivelChange(): void {
-    this.generateForm.patchValue({ gradoId: '' });
-    this.loadGrados();
+    this.selectedGenerateCompetenciaOptions = [];
+    this.selectedSaveCompetencias = [];
+    this.selectedSaveCapacidades = [];
+    this.selectedSaveDesempenos = [];
+    this.generateForm.patchValue({ gradoId: '', areaId: '', competenciaId: '' }, { emitEvent: false });
+    this.saveForm.patchValue({ competenciaIds: '', capacidadIds: '', desempenoIds: '' });
+    this.grados = [];
+    this.applyGenerateCatalogControlState();
+    if (this.generateHasSelected('nivelId')) {
+      this.loadGrados();
+    }
+  }
+
+  onGenerateGradoChange(): void {
+    this.selectedGenerateCompetenciaOptions = [];
+    this.selectedSaveCompetencias = [];
+    this.selectedSaveCapacidades = [];
+    this.selectedSaveDesempenos = [];
+    this.generateForm.patchValue({ areaId: '', competenciaId: '' }, { emitEvent: false });
+    this.saveForm.patchValue({ competenciaIds: '', capacidadIds: '', desempenoIds: '' });
+    this.applyGenerateCatalogControlState();
   }
 
   onGenerateAreaChange(): void {
@@ -146,8 +171,9 @@ export class Sesiones implements OnInit, OnChanges {
     this.selectedSaveCompetencias = [];
     this.selectedSaveCapacidades = [];
     this.selectedSaveDesempenos = [];
-    this.generateForm.patchValue({ competenciaId: '' });
+    this.generateForm.patchValue({ competenciaId: '' }, { emitEvent: false });
     this.saveForm.patchValue({ competenciaIds: '', capacidadIds: '', desempenoIds: '' });
+    this.applyGenerateCatalogControlState();
   }
 
   selectGenerateCompetencia(options: CatalogOptionResponse[]): void {
@@ -177,6 +203,14 @@ export class Sesiones implements OnInit, OnChanges {
     return this.numberOrNull(this.generateForm.get('areaId')?.value);
   }
 
+  canSearchGenerateCompetencia(): boolean {
+    return this.generateHasSelected('areaId') && this.generateForm.get('competenciaId')?.enabled === true;
+  }
+
+  canGenerate(): boolean {
+    return this.hasRequiredGenerateCatalogSelection() && this.generateForm.valid;
+  }
+
   primarySaveCompetenciaId(): number | null {
     const option = this.selectedSaveCompetencias[0] ?? this.selectedGenerateCompetenciaOptions[0];
     return this.numberOrNull(option?.id ?? null);
@@ -193,7 +227,7 @@ export class Sesiones implements OnInit, OnChanges {
   generate(): void {
     this.generateError = null;
     this.draft = null;
-    if (this.generateForm.invalid) {
+    if (!this.hasRequiredGenerateCatalogSelection() || this.generateForm.invalid) {
       this.generateForm.markAllAsTouched();
       return;
     }
@@ -402,41 +436,52 @@ export class Sesiones implements OnInit, OnChanges {
   private loadBaseCatalogs(): void {
     this.catalogLoading = true;
     this.catalogError = null;
-    this.catalogosService.niveles().subscribe({
-      next: (niveles) => {
+    forkJoin({
+      niveles: this.catalogosService.niveles(),
+      areas: this.catalogosService.areas(),
+    }).subscribe({
+      next: ({ niveles, areas }) => {
         this.niveles = niveles;
-        this.loadAreas();
-      },
-      error: (error: unknown) => {
-        this.catalogError = this.apiErrorService.toDisplayError(error);
-        this.catalogLoading = false;
-      },
-    });
-  }
-
-  private loadAreas(): void {
-    this.catalogosService.areas().subscribe({
-      next: (areas) => {
         this.areas = areas;
-        this.loadGrados();
+        this.catalogsReady = true;
+        this.catalogLoading = false;
+        this.applyGenerateCatalogControlState();
+        if (this.generateHasSelected('nivelId')) {
+          this.loadGrados();
+        }
       },
       error: (error: unknown) => {
         this.catalogError = this.apiErrorService.toDisplayError(error);
         this.catalogLoading = false;
+        this.applyGenerateCatalogControlState();
       },
     });
   }
 
   private loadGrados(): void {
+    const nivelId = this.numberOrNull(this.generateForm.get('nivelId')?.value);
+    if (!nivelId) {
+      this.grados = [];
+      this.applyGenerateCatalogControlState();
+      return;
+    }
+
     this.catalogLoading = true;
-    this.catalogosService.grados(this.numberOrNull(this.generateForm.get('nivelId')?.value)).subscribe({
-      next: (grados) => {
-        this.grados = grados;
+    this.setGenerateControlDisabled('gradoId', true);
+    this.catalogosService.grados(nivelId).pipe(
+      finalize(() => {
         this.catalogLoading = false;
+        this.applyGenerateCatalogControlState();
+      }),
+    ).subscribe({
+      next: (grados) => {
+        if (this.numberOrNull(this.generateForm.get('nivelId')?.value) !== nivelId) {
+          return;
+        }
+        this.grados = grados;
       },
       error: (error: unknown) => {
         this.catalogError = this.apiErrorService.toDisplayError(error);
-        this.catalogLoading = false;
       },
     });
   }
@@ -444,5 +489,35 @@ export class Sesiones implements OnInit, OnChanges {
   private numberOrNull(value: unknown): number | null {
     const numberValue = Number(value);
     return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+  }
+
+  private generateHasSelected(fieldName: string): boolean {
+    return this.numberOrNull(this.generateForm.get(fieldName)?.value) !== null;
+  }
+
+  private hasRequiredGenerateCatalogSelection(): boolean {
+    return this.generateHasSelected('nivelId')
+      && this.generateHasSelected('gradoId')
+      && this.generateHasSelected('areaId')
+      && this.generateHasSelected('competenciaId');
+  }
+
+  private applyGenerateCatalogControlState(): void {
+    const hasNivel = this.generateHasSelected('nivelId');
+    const hasGrado = this.generateHasSelected('gradoId');
+    const hasArea = this.generateHasSelected('areaId');
+
+    this.setGenerateControlDisabled('gradoId', !hasNivel || this.catalogLoading);
+    this.setGenerateControlDisabled('areaId', !hasNivel || !hasGrado);
+    this.setGenerateControlDisabled('competenciaId', !hasNivel || !hasGrado || !hasArea);
+  }
+
+  private setGenerateControlDisabled(fieldName: string, disabled: boolean): void {
+    const control = this.generateForm.get(fieldName);
+    if (disabled) {
+      control?.disable({ emitEvent: false });
+      return;
+    }
+    control?.enable({ emitEvent: false });
   }
 }

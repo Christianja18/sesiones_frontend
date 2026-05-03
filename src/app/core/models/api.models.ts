@@ -22,6 +22,28 @@ export interface CatalogOptionResponse {
   nombre: string;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthUserResponse {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: string;
+}
+
+export interface LoginResponse {
+  expiresInSeconds: number;
+  docente: AuthUserResponse;
+}
+
+export interface CsrfTokenResponse {
+  headerName: string;
+  token: string;
+}
+
 export interface CreateDocenteRequest {
   nombre: string;
   email: string;

@@ -1,60 +1,80 @@
-<div class="app-shell">
-  <header class="app-header">
-    <div>
-      <p class="eyebrow">Planificacion curricular</p>
-      <h1>Sesiones academicas</h1>
-    </div>
-    <nav class="app-nav" aria-label="Capas">
-      @for (frame of frames; track frame.key) {
-        <button
-          type="button"
-          [class.active]="isActiveFrame(frame.key)"
-          [attr.aria-current]="isActiveFrame(frame.key) ? 'page' : null"
-          (click)="selectFrame(frame.key)"
-        >
-          <span>{{ frame.marker }}</span>
-          {{ frame.label }}
-        </button>
-      }
-    </nav>
-  </header>
+@if (authChecking) {
+  <section class="session-loading" aria-live="polite">
+    <p class="eyebrow">Sesion</p>
+    <h1>Validando acceso</h1>
+  </section>
+} @else if (!session.isAuthenticated()) {
+  <app-login (loggedIn)="handleLoggedIn()" />
+} @else {
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Planificacion curricular</p>
+        <h1>Sesiones academicas</h1>
+      </div>
+      <div class="session-panel">
+        <div>
+          <span>{{ session.user()?.nombre }}</span>
+          <small>{{ session.user()?.rol }}</small>
+        </div>
+        <button class="button secondary" type="button" (click)="logout()">Salir</button>
+      </div>
+      <nav class="app-nav" aria-label="Capas">
+        @for (frame of availableFrames(); track frame.key) {
+          <button
+            type="button"
+            [class.active]="isActiveFrame(frame.key)"
+            [attr.aria-current]="isActiveFrame(frame.key) ? 'page' : null"
+            (click)="selectFrame(frame.key)"
+          >
+            <span>{{ frame.marker }}</span>
+            {{ frame.label }}
+          </button>
+        }
+      </nav>
+    </header>
 
-  <aside class="state-strip" aria-label="Estado de trabajo">
-    <span>Docente: {{ currentDocente?.id || 'sin seleccionar' }}</span>
-    <span>Unidad: {{ currentUnidad?.id || 'sin seleccionar' }}</span>
-    <span>Contexto: {{ currentContext?.competenciaId || 'sin seleccionar' }}</span>
-    <span>API: /api/v1</span>
-  </aside>
+    <aside class="state-strip" aria-label="Estado de trabajo">
+      <span>Docente: {{ currentDocente?.id || 'sin seleccionar' }}</span>
+      <span>Unidad: {{ currentUnidad?.id || 'sin seleccionar' }}</span>
+      <span>Contexto: {{ currentContext?.competenciaId || 'sin seleccionar' }}</span>
+      <span>API: /api/v1</span>
+    </aside>
 
-  <main class="workspace">
-    @switch (activeFrame) {
-      @case ('docentes') {
-        <section id="docentes" class="work-section frame-section">
-          <app-docentes (docenteCreated)="setDocente($event)" />
-        </section>
+    <main class="workspace">
+      @switch (activeFrame) {
+        @case ('docentes') {
+          @if (canAccessFrame('docentes')) {
+            <section id="docentes" class="work-section frame-section">
+              <app-docentes (docenteCreated)="setDocente($event)" />
+            </section>
+          }
+        }
+        @case ('unidades') {
+          <section id="unidades" class="work-section frame-section">
+            <app-unidades [docente]="currentDocente" (unidadCreated)="setUnidad($event)" />
+          </section>
+        }
+        @case ('curriculum') {
+          <section id="curriculum" class="work-section frame-section">
+            <app-curriculum [unidad]="currentUnidad" (contextLoaded)="setContext($event)" />
+          </section>
+        }
+        @case ('sesiones') {
+          <section id="sesiones" class="work-section frame-section">
+            <app-sesiones [unidad]="currentUnidad" [curriculum]="currentContext" />
+          </section>
+        }
+        @case ('documentos') {
+          @if (canAccessFrame('documentos')) {
+            <section id="documentos" class="work-section frame-section">
+              <app-documentos-curriculo />
+            </section>
+          }
+        }
       }
-      @case ('unidades') {
-        <section id="unidades" class="work-section frame-section">
-          <app-unidades [docente]="currentDocente" (unidadCreated)="setUnidad($event)" />
-        </section>
-      }
-      @case ('curriculum') {
-        <section id="curriculum" class="work-section frame-section">
-          <app-curriculum [unidad]="currentUnidad" (contextLoaded)="setContext($event)" />
-        </section>
-      }
-      @case ('sesiones') {
-        <section id="sesiones" class="work-section frame-section">
-          <app-sesiones [unidad]="currentUnidad" [curriculum]="currentContext" />
-        </section>
-      }
-      @case ('documentos') {
-        <section id="documentos" class="work-section frame-section">
-          <app-documentos-curriculo />
-        </section>
-      }
-    }
-  </main>
-</div>
+    </main>
+  </div>
+}
 
 <router-outlet />

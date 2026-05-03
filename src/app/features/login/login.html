@@ -1,0 +1,39 @@
+<section class="login-frame" aria-labelledby="login-title">
+  <div class="login-brand">
+    <p class="eyebrow">Planificacion curricular</p>
+    <h1 id="login-title">Sesiones academicas</h1>
+  </div>
+
+  <form class="login-form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <h2>Acceso</h2>
+
+    <label class="field">
+      <span>Email</span>
+      <input type="email" formControlName="email" autocomplete="username" maxlength="160" />
+      @if (fieldInvalid('email')) {
+        <small class="validation-message">{{ errorMessage('email') }}</small>
+      }
+    </label>
+
+    <label class="field">
+      <span>Clave</span>
+      <input type="password" formControlName="password" autocomplete="current-password" maxlength="72" />
+      @if (fieldInvalid('password')) {
+        <small class="validation-message">{{ errorMessage('password') }}</small>
+      }
+    </label>
+
+    <button class="button primary" type="submit" [disabled]="loading">
+      {{ loading ? 'Validando...' : 'Ingresar' }}
+    </button>
+
+    @if (apiError) {
+      <div class="alert error" role="alert">
+        <strong>{{ apiError.message }}</strong>
+        @for (detail of apiError.details; track detail) {
+          <span>{{ detail }}</span>
+        }
+      </div>
+    }
+  </form>
+</section>

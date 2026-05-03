@@ -1,13 +1,22 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { App } from './app';
 
 describe('App', () => {
+  let httpTesting: HttpTestingController;
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideHttpClient()],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
+
+    httpTesting = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    httpTesting.verify();
   });
 
   it('should create the app', () => {
@@ -18,8 +27,21 @@ describe('App', () => {
 
   it('should render title', async () => {
     const fixture = TestBed.createComponent(App);
-    await fixture.whenStable();
+    fixture.detectChanges();
+    flushRestoreUnauthorized();
+    await nextTick();
+    fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Sesiones academicas');
   });
+
+  function nextTick(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve));
+  }
+
+  function flushRestoreUnauthorized(): void {
+    const request = httpTesting.expectOne('/api/v1/auth/me');
+    expect(request.request.withCredentials).toBe(true);
+    request.flush({}, { status: 401, statusText: 'Unauthorized' });
+  }
 });
