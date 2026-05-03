@@ -23,8 +23,8 @@
       }
     </label>
 
-    <button class="button primary" type="submit" [disabled]="loading">
-      {{ loading ? 'Validando...' : 'Ingresar' }}
+    <button class="button primary icon-only" type="submit" [disabled]="loading" [attr.aria-busy]="loading" aria-label="Ingresar" title="Ingresar">
+      <app-icon [name]="loading ? 'loader' : 'login'" />
     </button>
 
     @if (apiError) {

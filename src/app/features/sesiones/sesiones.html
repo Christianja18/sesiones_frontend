@@ -36,7 +36,7 @@
         <select formControlName="nivelId" (change)="onGenerateNivelChange()">
           <option value="">Seleccionar</option>
           @for (nivel of niveles; track nivel.id) {
-            <option [value]="nivel.id">{{ nivel.nombre }}</option>
+            <option value="{{ nivel.id }}">{{ nivel.nombre }}</option>
           }
         </select>
         @if (generateFieldInvalid('nivelId')) {
@@ -49,7 +49,7 @@
         <select formControlName="gradoId" (change)="onGenerateGradoChange()">
           <option value="">Seleccionar</option>
           @for (grado of grados; track grado.id) {
-            <option [value]="grado.id">{{ grado.nombre }}</option>
+            <option value="{{ grado.id }}">{{ grado.nombre }}</option>
           }
         </select>
         @if (generateFieldInvalid('gradoId')) {
@@ -62,7 +62,7 @@
         <select formControlName="areaId" (change)="onGenerateAreaChange()">
           <option value="">Seleccionar</option>
           @for (area of areas; track area.id) {
-            <option [value]="area.id">{{ area.nombre }}</option>
+            <option value="{{ area.id }}">{{ area.nombre }}</option>
           }
         </select>
         @if (generateFieldInvalid('areaId')) {
@@ -70,17 +70,18 @@
         }
       </label>
 
-      <div class="field">
+      <div class="field field-wide generated-competence-field">
         <app-catalog-picker
           label="Competencia"
           kind="competencias"
+          [multi]="true"
           [filters]="{ areaId: generateAreaId() }"
           [selectedOptions]="selectedGenerateCompetenciaOptions"
           [disabled]="!canSearchGenerateCompetencia()"
           (selectionChange)="selectGenerateCompetencia($event)"
         />
-        @if (generateFieldInvalid('competenciaId')) {
-          <small class="validation-message">{{ simpleError('generate', 'competenciaId') }}</small>
+        @if (generateFieldInvalid('competenciaIds')) {
+          <small class="validation-message">{{ simpleError('generate', 'competenciaIds') }}</small>
         }
       </div>
 
@@ -117,10 +118,21 @@
       </label>
 
       <div class="actions field-wide">
-        <button class="button primary" type="submit" [disabled]="generating || catalogLoading || !canGenerate()">
-          {{ generating ? 'Generando...' : 'Generar sesion' }}
+        <button class="button primary icon-only" type="submit" [disabled]="generating || !canGenerate()" [attr.aria-busy]="generating" aria-label="Generar sesion" title="Generar sesion">
+          <app-icon [name]="generating ? 'loader' : 'generate'" />
         </button>
       </div>
+
+      <label class="field field-wide generated-text-field">
+        <span>Texto generado</span>
+        <textarea
+          class="generated-textarea"
+          [value]="generatedPlainText"
+          rows="14"
+          readonly
+          placeholder="El texto generado se mostrara aqui."
+        ></textarea>
+      </label>
     </form>
 
     @if (generateError) {
@@ -196,7 +208,7 @@
         }
       </div>
 
-      <div class="field">
+      <div class="field field-wide">
         <app-catalog-picker
           label="Capacidad"
           kind="capacidades"
@@ -211,9 +223,9 @@
         }
       </div>
 
-      <div class="field">
+      <div class="field field-wide">
         <app-catalog-picker
-          label="Desempeno"
+          label="Desempeño"
           kind="desempenos"
           [multi]="true"
           [filters]="{ gradoId: saveGradoId(), competenciaId: primarySaveCompetenciaId() }"
@@ -226,7 +238,7 @@
         }
       </div>
 
-      <label class="field">
+      <label class="field field-wide session-text-field">
         <span>Inicio</span>
         <textarea formControlName="inicio" rows="4"></textarea>
         @if (saveFieldInvalid('inicio')) {
@@ -234,7 +246,7 @@
         }
       </label>
 
-      <label class="field">
+      <label class="field field-wide session-text-field">
         <span>Desarrollo</span>
         <textarea formControlName="desarrollo" rows="4"></textarea>
         @if (saveFieldInvalid('desarrollo')) {
@@ -242,7 +254,7 @@
         }
       </label>
 
-      <label class="field">
+      <label class="field field-wide session-text-field">
         <span>Cierre</span>
         <textarea formControlName="cierre" rows="4"></textarea>
         @if (saveFieldInvalid('cierre')) {
@@ -250,7 +262,7 @@
         }
       </label>
 
-      <label class="field">
+      <label class="field field-wide session-text-field">
         <span>Criterios</span>
         <textarea formControlName="criteriosEvaluacion" rows="4"></textarea>
         @if (saveFieldInvalid('criteriosEvaluacion')) {
@@ -258,7 +270,7 @@
         }
       </label>
 
-      <label class="field">
+      <label class="field field-wide session-text-field">
         <span>Evidencias</span>
         <textarea formControlName="evidencias" rows="4"></textarea>
         @if (saveFieldInvalid('evidencias')) {
@@ -277,7 +289,7 @@
         }
       </label>
 
-      <label class="field field-wide">
+      <label class="field field-wide session-text-field">
         <span>Detalle de instrumento</span>
         <textarea formControlName="instrumentoDetalle" rows="4"></textarea>
         @if (saveFieldInvalid('instrumentoDetalle')) {
@@ -286,8 +298,8 @@
       </label>
 
       <div class="actions field-wide">
-        <button class="button primary" type="submit" [disabled]="saving">
-          {{ saving ? 'Guardando...' : 'Guardar sesion' }}
+        <button class="button primary icon-only" type="submit" [disabled]="saving" [attr.aria-busy]="saving" aria-label="Guardar sesion" title="Guardar sesion">
+          <app-icon [name]="saving ? 'loader' : 'save'" />
         </button>
       </div>
     </form>
@@ -312,8 +324,8 @@
         <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
       }
     </label>
-    <button class="button secondary" type="submit" [disabled]="lookupLoading">
-      {{ lookupLoading ? 'Consultando...' : 'Consultar' }}
+    <button class="button secondary icon-only" type="submit" [disabled]="lookupLoading" [attr.aria-busy]="lookupLoading" aria-label="Consultar sesion" title="Consultar sesion">
+      <app-icon [name]="lookupLoading ? 'loader' : 'search'" />
     </button>
   </form>
 
@@ -350,7 +362,7 @@
         <h4>Competencias</h4>
         <ul class="reference-list">
           @for (item of draft.competencias; track item.id) {
-            <li><span>{{ item.id }}</span>{{ item.descripcion }}</li>
+            <li>{{ item.descripcion }}</li>
           }
         </ul>
       </div>

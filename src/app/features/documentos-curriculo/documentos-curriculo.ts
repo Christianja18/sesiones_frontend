@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import {
@@ -16,11 +16,12 @@ import {
   pdfFileNameValidator,
   positiveIntegerValidator,
 } from '../../core/validators/form.validators';
+import { AppIcon } from '../../shared/icon/icon';
 import { DocumentosCurriculoService } from './documentos-curriculo.service';
 
 @Component({
   selector: 'app-documentos-curriculo',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, AppIcon],
   templateUrl: './documentos-curriculo.html',
   styleUrl: './documentos-curriculo.css',
 })
@@ -28,6 +29,7 @@ export class DocumentosCurriculo {
   private readonly fb = inject(FormBuilder);
   private readonly documentosService = inject(DocumentosCurriculoService);
   private readonly apiErrorService = inject(ApiErrorService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
 
   readonly form = this.fb.group({
     tipo: ['curriculo', [Validators.required, enumValueValidator(['curriculo', 'programa'] as const)]],
@@ -63,12 +65,16 @@ export class DocumentosCurriculo {
     this.loading = true;
     this.documentosService.create(request).subscribe({
       next: (response) => {
-        this.result = response;
-        this.loading = false;
+        this.commitAsyncState(() => {
+          this.result = response;
+          this.loading = false;
+        });
       },
       error: (error: unknown) => {
-        this.apiError = this.apiErrorService.toDisplayError(error);
-        this.loading = false;
+        this.commitAsyncState(() => {
+          this.apiError = this.apiErrorService.toDisplayError(error);
+          this.loading = false;
+        });
       },
     });
   }
@@ -82,12 +88,16 @@ export class DocumentosCurriculo {
     this.processing = true;
     this.documentosService.process(this.result.id).subscribe({
       next: (response) => {
-        this.result = response;
-        this.processing = false;
+        this.commitAsyncState(() => {
+          this.result = response;
+          this.processing = false;
+        });
       },
       error: (error: unknown) => {
-        this.processError = this.apiErrorService.toDisplayError(error);
-        this.processing = false;
+        this.commitAsyncState(() => {
+          this.processError = this.apiErrorService.toDisplayError(error);
+          this.processing = false;
+        });
       },
     });
   }
@@ -102,12 +112,16 @@ export class DocumentosCurriculo {
     this.lookupLoading = true;
     this.documentosService.findById(Number(this.lookupForm.get('documentoId')?.value)).subscribe({
       next: (response) => {
-        this.result = response;
-        this.lookupLoading = false;
+        this.commitAsyncState(() => {
+          this.result = response;
+          this.lookupLoading = false;
+        });
       },
       error: (error: unknown) => {
-        this.lookupError = this.apiErrorService.toDisplayError(error);
-        this.lookupLoading = false;
+        this.commitAsyncState(() => {
+          this.lookupError = this.apiErrorService.toDisplayError(error);
+          this.lookupLoading = false;
+        });
       },
     });
   }
@@ -147,5 +161,12 @@ export class DocumentosCurriculo {
 
   private textValue(fieldName: string): string {
     return String(this.form.get(fieldName)?.value ?? '').trim();
+  }
+
+  private commitAsyncState(applyState: () => void): void {
+    setTimeout(() => {
+      applyState();
+      this.changeDetectorRef.detectChanges();
+    });
   }
 }

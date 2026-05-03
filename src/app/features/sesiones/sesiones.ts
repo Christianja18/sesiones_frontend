@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, Input, OnChanges, OnInit, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, Input, OnChanges, OnInit, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize, forkJoin } from 'rxjs';
+import { forkJoin } from 'rxjs';
 
 import {
   CatalogOptionResponse,
@@ -26,13 +26,14 @@ import {
 } from '../../core/validators/form.validators';
 import { CatalogPicker } from '../catalogos/catalog-picker';
 import { CatalogosService } from '../catalogos/catalogos.service';
+import { AppIcon } from '../../shared/icon/icon';
 import { SesionesService } from './sesiones.service';
 
 type GenerationMode = 'plantilla' | 'ia';
 
 @Component({
   selector: 'app-sesiones',
-  imports: [CommonModule, ReactiveFormsModule, CatalogPicker],
+  imports: [CommonModule, ReactiveFormsModule, CatalogPicker, AppIcon],
   templateUrl: './sesiones.html',
   styleUrl: './sesiones.css',
 })
@@ -44,6 +45,7 @@ export class Sesiones implements OnInit, OnChanges {
   private readonly sesionesService = inject(SesionesService);
   private readonly catalogosService = inject(CatalogosService);
   private readonly apiErrorService = inject(ApiErrorService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
 
   readonly generationModes: { value: GenerationMode; label: string }[] = [
     { value: 'plantilla', label: 'Plantilla local' },
@@ -55,7 +57,7 @@ export class Sesiones implements OnInit, OnChanges {
     nivelId: ['', [Validators.required, positiveIntegerValidator]],
     gradoId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
     areaId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
-    competenciaId: [{ value: '', disabled: true }, [Validators.required, positiveIntegerValidator]],
+    competenciaIds: [{ value: '', disabled: true }, [positiveIntegerListValidator(true)]],
     tema: ['', [Validators.required, notBlankValidator, Validators.minLength(4), Validators.maxLength(180)]],
     contexto: ['', [Validators.required, notBlankValidator, Validators.minLength(10), Validators.maxLength(1200)]],
     duracionMinutos: ['90', [Validators.required, positiveIntegerValidator, Validators.min(1), Validators.max(480)]],
@@ -97,6 +99,7 @@ export class Sesiones implements OnInit, OnChanges {
   selectedSaveCapacidades: CatalogOptionResponse[] = [];
   selectedSaveDesempenos: CatalogOptionResponse[] = [];
   draft: SesionResponse | null = null;
+  generatedPlainText = '';
   saved: SesionResponse | null = null;
   lookupResult: SesionResponse | null = null;
   generateError: DisplayApiError | null = null;
@@ -129,7 +132,7 @@ export class Sesiones implements OnInit, OnChanges {
         nivelId: String(this.curriculum.nivelId),
         gradoId: String(this.curriculum.gradoId),
         areaId: String(this.curriculum.areaId),
-        competenciaId: String(this.curriculum.competenciaId),
+        competenciaIds: String(this.curriculum.competenciaId),
       }, { emitEvent: false });
       const competencia = {
         id: String(this.curriculum.competenciaId),
@@ -147,7 +150,7 @@ export class Sesiones implements OnInit, OnChanges {
     this.selectedSaveCompetencias = [];
     this.selectedSaveCapacidades = [];
     this.selectedSaveDesempenos = [];
-    this.generateForm.patchValue({ gradoId: '', areaId: '', competenciaId: '' }, { emitEvent: false });
+    this.generateForm.patchValue({ gradoId: '', areaId: '', competenciaIds: '' }, { emitEvent: false });
     this.saveForm.patchValue({ competenciaIds: '', capacidadIds: '', desempenoIds: '' });
     this.grados = [];
     this.applyGenerateCatalogControlState();
@@ -161,7 +164,7 @@ export class Sesiones implements OnInit, OnChanges {
     this.selectedSaveCompetencias = [];
     this.selectedSaveCapacidades = [];
     this.selectedSaveDesempenos = [];
-    this.generateForm.patchValue({ areaId: '', competenciaId: '' }, { emitEvent: false });
+    this.generateForm.patchValue({ areaId: '', competenciaIds: '' }, { emitEvent: false });
     this.saveForm.patchValue({ competenciaIds: '', capacidadIds: '', desempenoIds: '' });
     this.applyGenerateCatalogControlState();
   }
@@ -171,14 +174,14 @@ export class Sesiones implements OnInit, OnChanges {
     this.selectedSaveCompetencias = [];
     this.selectedSaveCapacidades = [];
     this.selectedSaveDesempenos = [];
-    this.generateForm.patchValue({ competenciaId: '' }, { emitEvent: false });
+    this.generateForm.patchValue({ competenciaIds: '' }, { emitEvent: false });
     this.saveForm.patchValue({ competenciaIds: '', capacidadIds: '', desempenoIds: '' });
     this.applyGenerateCatalogControlState();
   }
 
   selectGenerateCompetencia(options: CatalogOptionResponse[]): void {
     this.selectedGenerateCompetenciaOptions = options;
-    this.generateForm.patchValue({ competenciaId: options[0]?.id ?? '' });
+    this.generateForm.patchValue({ competenciaIds: this.catalogIds(options) });
   }
 
   selectSaveCompetencias(options: CatalogOptionResponse[]): void {
@@ -204,7 +207,7 @@ export class Sesiones implements OnInit, OnChanges {
   }
 
   canSearchGenerateCompetencia(): boolean {
-    return this.generateHasSelected('areaId') && this.generateForm.get('competenciaId')?.enabled === true;
+    return this.generateHasSelected('areaId') && this.generateForm.get('competenciaIds')?.enabled === true;
   }
 
   canGenerate(): boolean {
@@ -227,16 +230,19 @@ export class Sesiones implements OnInit, OnChanges {
   generate(): void {
     this.generateError = null;
     this.draft = null;
+    this.generatedPlainText = '';
     if (!this.hasRequiredGenerateCatalogSelection() || this.generateForm.invalid) {
       this.generateForm.markAllAsTouched();
       return;
     }
 
+    const competenciaIds = integerList(this.generateForm.get('competenciaIds')?.value);
     const request: GenerateSesionRequest = {
       nivelId: this.generateNumberValue('nivelId'),
       gradoId: this.generateNumberValue('gradoId'),
       areaId: this.generateNumberValue('areaId'),
-      competenciaId: this.generateNumberValue('competenciaId'),
+      competenciaId: competenciaIds[0],
+      competenciaIds,
       tema: this.generateTextValue('tema'),
       contexto: this.generateTextValue('contexto'),
       duracionMinutos: this.generateNumberValue('duracionMinutos'),
@@ -255,14 +261,20 @@ export class Sesiones implements OnInit, OnChanges {
     this.generating = true;
     request$.subscribe({
       next: (response) => {
-        this.draft = response;
-        this.applyDraftToSaveForm(response);
-        this.selectedGenerateCompetenciaOptions = this.referencesToOptions(response.competencias);
-        this.generating = false;
+        this.commitAsyncState(() => {
+          this.draft = response;
+          this.applyDraftToSaveForm(response);
+          this.selectedGenerateCompetenciaOptions = this.referencesToOptions(response.competencias);
+          this.generateForm.patchValue({ competenciaIds: this.referenceIds(response.competencias) }, { emitEvent: false });
+          this.generatedPlainText = this.sessionToPlainText(response);
+          this.generating = false;
+        });
       },
       error: (error: unknown) => {
-        this.generateError = this.apiErrorService.toDisplayError(error);
-        this.generating = false;
+        this.commitAsyncState(() => {
+          this.generateError = this.apiErrorService.toDisplayError(error);
+          this.generating = false;
+        });
       },
     });
   }
@@ -301,12 +313,16 @@ export class Sesiones implements OnInit, OnChanges {
     this.saving = true;
     this.sesionesService.save(request).subscribe({
       next: (response) => {
-        this.saved = response;
-        this.saving = false;
+        this.commitAsyncState(() => {
+          this.saved = response;
+          this.saving = false;
+        });
       },
       error: (error: unknown) => {
-        this.saveError = this.apiErrorService.toDisplayError(error);
-        this.saving = false;
+        this.commitAsyncState(() => {
+          this.saveError = this.apiErrorService.toDisplayError(error);
+          this.saving = false;
+        });
       },
     });
   }
@@ -322,12 +338,16 @@ export class Sesiones implements OnInit, OnChanges {
     this.lookupLoading = true;
     this.sesionesService.findById(Number(this.lookupForm.get('sesionId')?.value)).subscribe({
       next: (response) => {
-        this.lookupResult = response;
-        this.lookupLoading = false;
+        this.commitAsyncState(() => {
+          this.lookupResult = response;
+          this.lookupLoading = false;
+        });
       },
       error: (error: unknown) => {
-        this.lookupError = this.apiErrorService.toDisplayError(error);
-        this.lookupLoading = false;
+        this.commitAsyncState(() => {
+          this.lookupError = this.apiErrorService.toDisplayError(error);
+          this.lookupLoading = false;
+        });
       },
     });
   }
@@ -413,6 +433,61 @@ export class Sesiones implements OnInit, OnChanges {
     }));
   }
 
+  private sessionToPlainText(session: SesionResponse): string {
+    const lines: string[] = [];
+    this.pushValue(lines, 'Titulo', session.titulo);
+    this.pushValue(lines, 'Proposito', session.proposito);
+    this.pushValue(lines, 'Duracion', `${session.duracionMinutos} min`);
+
+    this.pushSection(lines, 'Competencias', this.referenceDescriptions(session.competencias));
+    this.pushSection(lines, 'Capacidades', this.referenceDescriptions(session.capacidades));
+    this.pushSection(lines, 'Estandares', this.referenceDescriptions(session.estandares));
+    this.pushSection(lines, 'Desempeños', this.referenceDescriptions(session.desempenos));
+    this.pushSection(lines, 'Inicio', session.actividades.inicio);
+    this.pushSection(lines, 'Desarrollo', session.actividades.desarrollo);
+    this.pushSection(lines, 'Cierre', session.actividades.cierre);
+    this.pushSection(lines, 'Criterios de evaluacion', session.criteriosEvaluacion);
+    this.pushSection(lines, 'Evidencias', session.evidencias);
+
+    if (session.instrumentoEvaluacion) {
+      this.pushValue(lines, 'Instrumento de evaluacion', this.instrumentoLabel(session.instrumentoEvaluacion.tipo));
+      this.pushSection(lines, 'Detalle de instrumento', session.instrumentoEvaluacion.detalle);
+    }
+
+    return lines.join('\n').trim();
+  }
+
+  private pushValue(lines: string[], label: string, value: string | null | undefined): void {
+    const text = String(value ?? '').trim();
+    if (!text) {
+      return;
+    }
+    if (lines.length) {
+      lines.push('');
+    }
+    lines.push(`${label}: ${text}`);
+  }
+
+  private pushSection(lines: string[], title: string, values: string[]): void {
+    const cleanValues = values.map((value) => value.trim()).filter(Boolean);
+    if (!cleanValues.length) {
+      return;
+    }
+    if (lines.length) {
+      lines.push('');
+    }
+    lines.push(`${title}:`);
+    lines.push(...cleanValues.map((value) => `- ${value}`));
+  }
+
+  private referenceDescriptions(references: TextoReferenciaResponse[]): string[] {
+    return references.map((item) => item.descripcion);
+  }
+
+  private instrumentoLabel(tipo: InstrumentoTipo): string {
+    return tipo === 'lista_cotejo' ? 'Lista de cotejo' : 'Rubrica';
+  }
+
   private catalogIds(options: CatalogOptionResponse[]): string {
     return options.map((option) => option.id).join(', ');
   }
@@ -441,19 +516,23 @@ export class Sesiones implements OnInit, OnChanges {
       areas: this.catalogosService.areas(),
     }).subscribe({
       next: ({ niveles, areas }) => {
-        this.niveles = niveles;
-        this.areas = areas;
-        this.catalogsReady = true;
-        this.catalogLoading = false;
-        this.applyGenerateCatalogControlState();
-        if (this.generateHasSelected('nivelId')) {
-          this.loadGrados();
-        }
+        this.commitAsyncState(() => {
+          this.niveles = niveles;
+          this.areas = areas;
+          this.catalogsReady = true;
+          this.catalogLoading = false;
+          this.applyGenerateCatalogControlState();
+          if (this.generateHasSelected('nivelId')) {
+            this.loadGrados();
+          }
+        });
       },
       error: (error: unknown) => {
-        this.catalogError = this.apiErrorService.toDisplayError(error);
-        this.catalogLoading = false;
-        this.applyGenerateCatalogControlState();
+        this.commitAsyncState(() => {
+          this.catalogError = this.apiErrorService.toDisplayError(error);
+          this.catalogLoading = false;
+          this.applyGenerateCatalogControlState();
+        });
       },
     });
   }
@@ -468,20 +547,22 @@ export class Sesiones implements OnInit, OnChanges {
 
     this.catalogLoading = true;
     this.setGenerateControlDisabled('gradoId', true);
-    this.catalogosService.grados(nivelId).pipe(
-      finalize(() => {
-        this.catalogLoading = false;
-        this.applyGenerateCatalogControlState();
-      }),
-    ).subscribe({
+    this.catalogosService.grados(nivelId).subscribe({
       next: (grados) => {
-        if (this.numberOrNull(this.generateForm.get('nivelId')?.value) !== nivelId) {
-          return;
-        }
-        this.grados = grados;
+        this.commitAsyncState(() => {
+          if (this.numberOrNull(this.generateForm.get('nivelId')?.value) === nivelId) {
+            this.grados = grados;
+          }
+          this.catalogLoading = false;
+          this.applyGenerateCatalogControlState();
+        });
       },
       error: (error: unknown) => {
-        this.catalogError = this.apiErrorService.toDisplayError(error);
+        this.commitAsyncState(() => {
+          this.catalogError = this.apiErrorService.toDisplayError(error);
+          this.catalogLoading = false;
+          this.applyGenerateCatalogControlState();
+        });
       },
     });
   }
@@ -499,7 +580,7 @@ export class Sesiones implements OnInit, OnChanges {
     return this.generateHasSelected('nivelId')
       && this.generateHasSelected('gradoId')
       && this.generateHasSelected('areaId')
-      && this.generateHasSelected('competenciaId');
+      && integerList(this.generateForm.get('competenciaIds')?.value).length > 0;
   }
 
   private applyGenerateCatalogControlState(): void {
@@ -509,7 +590,7 @@ export class Sesiones implements OnInit, OnChanges {
 
     this.setGenerateControlDisabled('gradoId', !hasNivel || this.catalogLoading);
     this.setGenerateControlDisabled('areaId', !hasNivel || !hasGrado);
-    this.setGenerateControlDisabled('competenciaId', !hasNivel || !hasGrado || !hasArea);
+    this.setGenerateControlDisabled('competenciaIds', !hasNivel || !hasGrado || !hasArea);
   }
 
   private setGenerateControlDisabled(fieldName: string, disabled: boolean): void {
@@ -519,5 +600,12 @@ export class Sesiones implements OnInit, OnChanges {
       return;
     }
     control?.enable({ emitEvent: false });
+  }
+
+  private commitAsyncState(applyState: () => void): void {
+    setTimeout(() => {
+      applyState();
+      this.changeDetectorRef.detectChanges();
+    });
   }
 }

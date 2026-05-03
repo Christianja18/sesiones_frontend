@@ -11,6 +11,7 @@ import { Login } from './features/login/login';
 import { LoginService } from './features/login/login.service';
 import { Sesiones } from './features/sesiones/sesiones';
 import { Unidades } from './features/unidades/unidades';
+import { AppIcon, AppIconName } from './shared/icon/icon';
 
 type AppFrameKey = 'docentes' | 'unidades' | 'curriculum' | 'sesiones' | 'documentos';
 
@@ -18,11 +19,12 @@ interface AppFrame {
   key: AppFrameKey;
   label: string;
   marker: string;
+  icon: AppIconName;
 }
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Login, Docentes, Unidades, Curriculum, Sesiones, DocumentosCurriculo],
+  imports: [RouterOutlet, Login, Docentes, Unidades, Curriculum, Sesiones, DocumentosCurriculo, AppIcon],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -31,11 +33,11 @@ export class App implements OnInit {
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly loginService = inject(LoginService);
   protected readonly frames: AppFrame[] = [
-    { key: 'docentes', label: 'Docente', marker: '01' },
-    { key: 'unidades', label: 'Unidad', marker: '02' },
-    { key: 'curriculum', label: 'Curriculo', marker: '03' },
-    { key: 'sesiones', label: 'Sesion', marker: '04' },
-    { key: 'documentos', label: 'Documentos', marker: '05' },
+    { key: 'docentes', label: 'Docente', marker: '01', icon: 'user' },
+    { key: 'unidades', label: 'Unidad', marker: '02', icon: 'unit' },
+    { key: 'curriculum', label: 'Curriculo', marker: '03', icon: 'book' },
+    { key: 'sesiones', label: 'Sesion', marker: '04', icon: 'session' },
+    { key: 'documentos', label: 'Documentos', marker: '05', icon: 'files' },
   ];
 
   protected activeFrame: AppFrameKey = 'docentes';

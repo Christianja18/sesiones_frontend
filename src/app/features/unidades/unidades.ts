@@ -1,18 +1,19 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize, forkJoin } from 'rxjs';
+import { forkJoin } from 'rxjs';
 
 import { ApiErrorService } from '../../core/services/api-error.service';
 import { CatalogOptionResponse, CreateUnidadRequest, DisplayApiError, DocenteResponse, UnidadResponse } from '../../core/models/api.models';
 import { dateRangeValidator, notBlankValidator, positiveIntegerValidator } from '../../core/validators/form.validators';
+import { AppIcon } from '../../shared/icon/icon';
 import { CatalogPicker } from '../catalogos/catalog-picker';
 import { CatalogosService } from '../catalogos/catalogos.service';
 import { UnidadesService } from './unidades.service';
 
 @Component({
   selector: 'app-unidades',
-  imports: [CommonModule, ReactiveFormsModule, CatalogPicker],
+  imports: [CommonModule, ReactiveFormsModule, CatalogPicker, AppIcon],
   templateUrl: './unidades.html',
   styleUrl: './unidades.css',
 })
@@ -24,6 +25,7 @@ export class Unidades implements OnInit, OnChanges {
   private readonly unidadesService = inject(UnidadesService);
   private readonly catalogosService = inject(CatalogosService);
   private readonly apiErrorService = inject(ApiErrorService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
 
   readonly form = this.fb.group(
     {
@@ -106,14 +108,18 @@ export class Unidades implements OnInit, OnChanges {
     this.loading = true;
     this.unidadesService.create(request).subscribe({
       next: (response) => {
-        this.result = response;
-        this.syncFromUnidad(response);
-        this.unidadCreated.emit(response);
-        this.loading = false;
+        this.commitAsyncState(() => {
+          this.result = response;
+          this.syncFromUnidad(response);
+          this.unidadCreated.emit(response);
+          this.loading = false;
+        });
       },
       error: (error: unknown) => {
-        this.apiError = this.apiErrorService.toDisplayError(error);
-        this.loading = false;
+        this.commitAsyncState(() => {
+          this.apiError = this.apiErrorService.toDisplayError(error);
+          this.loading = false;
+        });
       },
     });
   }
@@ -129,14 +135,18 @@ export class Unidades implements OnInit, OnChanges {
     this.lookupLoading = true;
     this.unidadesService.findById(Number(this.lookupForm.get('unidadId')?.value)).subscribe({
       next: (response) => {
-        this.lookupResult = response;
-        this.syncFromUnidad(response);
-        this.unidadCreated.emit(response);
-        this.lookupLoading = false;
+        this.commitAsyncState(() => {
+          this.lookupResult = response;
+          this.syncFromUnidad(response);
+          this.unidadCreated.emit(response);
+          this.lookupLoading = false;
+        });
       },
       error: (error: unknown) => {
-        this.lookupError = this.apiErrorService.toDisplayError(error);
-        this.lookupLoading = false;
+        this.commitAsyncState(() => {
+          this.lookupError = this.apiErrorService.toDisplayError(error);
+          this.lookupLoading = false;
+        });
       },
     });
   }
@@ -153,6 +163,10 @@ export class Unidades implements OnInit, OnChanges {
 
   formRangeInvalid(): boolean {
     return !!this.form.errors?.['dateRange'] && (this.form.dirty || this.form.touched);
+  }
+
+  canCreateUnidad(): boolean {
+    return this.hasRequiredCatalogSelection() && this.form.valid;
   }
 
   errorMessage(fieldName: string): string {
@@ -191,15 +205,19 @@ export class Unidades implements OnInit, OnChanges {
       areas: this.catalogosService.areas(),
     }).subscribe({
       next: ({ niveles, areas }) => {
-        this.niveles = niveles;
-        this.areas = areas;
-        this.catalogLoading = false;
-        this.applyCatalogControlState();
+        this.commitAsyncState(() => {
+          this.niveles = niveles;
+          this.areas = areas;
+          this.catalogLoading = false;
+          this.applyCatalogControlState();
+        });
       },
       error: (error: unknown) => {
-        this.catalogError = this.apiErrorService.toDisplayError(error);
-        this.catalogLoading = false;
-        this.applyCatalogControlState();
+        this.commitAsyncState(() => {
+          this.catalogError = this.apiErrorService.toDisplayError(error);
+          this.catalogLoading = false;
+          this.applyCatalogControlState();
+        });
       },
     });
   }
@@ -214,20 +232,22 @@ export class Unidades implements OnInit, OnChanges {
 
     this.catalogLoading = true;
     this.setControlDisabled('gradoId', true);
-    this.catalogosService.grados(nivelId).pipe(
-      finalize(() => {
-        this.catalogLoading = false;
-        this.applyCatalogControlState();
-      }),
-    ).subscribe({
+    this.catalogosService.grados(nivelId).subscribe({
       next: (grados) => {
-        if (this.numberOrNull('nivelId') !== nivelId) {
-          return;
-        }
-        this.grados = grados;
+        this.commitAsyncState(() => {
+          if (this.numberOrNull('nivelId') === nivelId) {
+            this.grados = grados;
+          }
+          this.catalogLoading = false;
+          this.applyCatalogControlState();
+        });
       },
       error: (error: unknown) => {
-        this.catalogError = this.apiErrorService.toDisplayError(error);
+        this.commitAsyncState(() => {
+          this.catalogError = this.apiErrorService.toDisplayError(error);
+          this.catalogLoading = false;
+          this.applyCatalogControlState();
+        });
       },
     });
   }
@@ -272,5 +292,12 @@ export class Unidades implements OnInit, OnChanges {
       return;
     }
     control?.enable({ emitEvent: false });
+  }
+
+  private commitAsyncState(applyState: () => void): void {
+    setTimeout(() => {
+      applyState();
+      this.changeDetectorRef.detectChanges();
+    });
   }
 }

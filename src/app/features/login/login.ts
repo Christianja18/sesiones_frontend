@@ -1,17 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Output, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize, map, switchMap, tap } from 'rxjs';
+import { map, switchMap, tap } from 'rxjs';
 
 import { AuthSessionService } from '../../core/auth/auth-session.service';
 import { DisplayApiError, LoginRequest } from '../../core/models/api.models';
 import { ApiErrorService } from '../../core/services/api-error.service';
+import { AppIcon } from '../../shared/icon/icon';
 import { notBlankValidator } from '../../core/validators/form.validators';
 import { LoginService } from './login.service';
 
 @Component({
   selector: 'app-login',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, AppIcon],
   templateUrl: './login.html',
   styleUrl: './login.css',
 })
@@ -22,6 +23,7 @@ export class Login {
   private readonly loginService = inject(LoginService);
   private readonly authSession = inject(AuthSessionService);
   private readonly apiErrorService = inject(ApiErrorService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
 
   readonly form = this.fb.group({
     email: ['', [Validators.required, notBlankValidator, Validators.email, Validators.maxLength(160)]],
@@ -48,18 +50,21 @@ export class Login {
       tap((csrf) => this.authSession.setCsrfToken(csrf)),
       switchMap(() => this.loginService.login(request)),
       switchMap((response) => this.loginService.csrf().pipe(map((csrf) => ({ response, csrf })))),
-      finalize(() => {
-        this.loading = false;
-      }),
     ).subscribe({
       next: ({ response, csrf }) => {
-        this.authSession.setSession(response);
-        this.authSession.setCsrfToken(csrf);
-        this.loggedIn.emit();
-        this.form.reset();
+        this.commitAsyncState(() => {
+          this.authSession.setSession(response);
+          this.authSession.setCsrfToken(csrf);
+          this.loading = false;
+          this.loggedIn.emit();
+          this.form.reset();
+        });
       },
       error: (error: unknown) => {
-        this.apiError = this.apiErrorService.toDisplayError(error);
+        this.commitAsyncState(() => {
+          this.apiError = this.apiErrorService.toDisplayError(error);
+          this.loading = false;
+        });
       },
     });
   }
@@ -91,5 +96,12 @@ export class Login {
 
   private textValue(fieldName: string): string {
     return String(this.form.get(fieldName)?.value ?? '').trim();
+  }
+
+  private commitAsyncState(applyState: () => void): void {
+    setTimeout(() => {
+      applyState();
+      this.changeDetectorRef.detectChanges();
+    });
   }
 }

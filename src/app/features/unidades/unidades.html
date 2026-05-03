@@ -32,7 +32,7 @@
       <select formControlName="nivelId" (change)="onNivelChange()">
         <option value="">Seleccionar</option>
         @for (nivel of niveles; track nivel.id) {
-          <option [value]="nivel.id">{{ nivel.nombre }}</option>
+          <option value="{{ nivel.id }}">{{ nivel.nombre }}</option>
         }
       </select>
       @if (fieldInvalid('nivelId')) {
@@ -45,7 +45,7 @@
       <select formControlName="gradoId" (change)="onGradoChange()">
         <option value="">Seleccionar</option>
         @for (grado of grados; track grado.id) {
-          <option [value]="grado.id">{{ grado.nombre }}</option>
+          <option value="{{ grado.id }}">{{ grado.nombre }}</option>
         }
       </select>
       @if (fieldInvalid('gradoId')) {
@@ -58,7 +58,7 @@
       <select formControlName="areaId">
         <option value="">Seleccionar</option>
         @for (area of areas; track area.id) {
-          <option [value]="area.id">{{ area.nombre }}</option>
+          <option value="{{ area.id }}">{{ area.nombre }}</option>
         }
       </select>
       @if (fieldInvalid('areaId')) {
@@ -107,8 +107,8 @@
     </label>
 
     <div class="actions field-wide">
-      <button class="button primary" type="submit" [disabled]="loading || catalogLoading">
-        {{ loading ? 'Guardando...' : 'Crear unidad' }}
+      <button class="button primary icon-only" type="submit" [disabled]="loading || !canCreateUnidad()" [attr.aria-busy]="loading" aria-label="Crear unidad" title="Crear unidad">
+        <app-icon [name]="loading ? 'loader' : 'save'" />
       </button>
     </div>
   </form>
@@ -122,8 +122,8 @@
           <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
         }
       </label>
-      <button class="button secondary" type="submit" [disabled]="lookupLoading">
-        {{ lookupLoading ? 'Consultando...' : 'Consultar' }}
+      <button class="button secondary icon-only" type="submit" [disabled]="lookupLoading" [attr.aria-busy]="lookupLoading" aria-label="Consultar unidad" title="Consultar unidad">
+        <app-icon [name]="lookupLoading ? 'loader' : 'search'" />
       </button>
     </form>
   </aside>

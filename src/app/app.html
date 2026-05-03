@@ -17,7 +17,9 @@
           <span>{{ session.user()?.nombre }}</span>
           <small>{{ session.user()?.rol }}</small>
         </div>
-        <button class="button secondary" type="button" (click)="logout()">Salir</button>
+        <button class="button secondary icon-only" type="button" aria-label="Salir" title="Salir" (click)="logout()">
+          <app-icon name="logout" />
+        </button>
       </div>
       <nav class="app-nav" aria-label="Capas">
         @for (frame of availableFrames(); track frame.key) {
@@ -25,10 +27,11 @@
             type="button"
             [class.active]="isActiveFrame(frame.key)"
             [attr.aria-current]="isActiveFrame(frame.key) ? 'page' : null"
+            [attr.aria-label]="frame.label"
+            [attr.title]="frame.label"
             (click)="selectFrame(frame.key)"
           >
-            <span>{{ frame.marker }}</span>
-            {{ frame.label }}
+            <app-icon [name]="frame.icon" />
           </button>
         }
       </nav>

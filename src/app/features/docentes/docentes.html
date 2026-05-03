@@ -34,8 +34,8 @@
   </label>
 
   <div class="actions field-wide">
-    <button class="button primary" type="submit" [disabled]="loading">
-      {{ loading ? 'Registrando...' : 'Registrar docente' }}
+    <button class="button primary icon-only" type="submit" [disabled]="loading" [attr.aria-busy]="loading" aria-label="Registrar docente" title="Registrar docente">
+      <app-icon [name]="loading ? 'loader' : 'save'" />
     </button>
   </div>
 </form>

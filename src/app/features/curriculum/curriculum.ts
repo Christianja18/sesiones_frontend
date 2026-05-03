@@ -1,18 +1,19 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize, forkJoin } from 'rxjs';
+import { forkJoin } from 'rxjs';
 
 import { ApiErrorService } from '../../core/services/api-error.service';
 import { CatalogOptionResponse, CurriculumContextRequest, CurriculumContextResponse, DisplayApiError, UnidadResponse } from '../../core/models/api.models';
 import { positiveIntegerValidator } from '../../core/validators/form.validators';
+import { AppIcon } from '../../shared/icon/icon';
 import { CatalogPicker } from '../catalogos/catalog-picker';
 import { CatalogosService } from '../catalogos/catalogos.service';
 import { CurriculumService } from './curriculum.service';
 
 @Component({
   selector: 'app-curriculum',
-  imports: [CommonModule, ReactiveFormsModule, CatalogPicker],
+  imports: [CommonModule, ReactiveFormsModule, CatalogPicker, AppIcon],
   templateUrl: './curriculum.html',
   styleUrl: './curriculum.css',
 })
@@ -24,6 +25,7 @@ export class Curriculum implements OnInit, OnChanges {
   private readonly curriculumService = inject(CurriculumService);
   private readonly catalogosService = inject(CatalogosService);
   private readonly apiErrorService = inject(ApiErrorService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
 
   readonly form = this.fb.group({
     nivelId: ['', [Validators.required, positiveIntegerValidator]],
@@ -118,17 +120,21 @@ export class Curriculum implements OnInit, OnChanges {
     this.loading = true;
     this.curriculumService.getContext(request).subscribe({
       next: (response) => {
-        this.context = response;
-        this.selectedCompetenciaOptions = [{
-          id: String(response.competenciaId),
-          nombre: response.competenciaDescripcion,
-        }];
-        this.contextLoaded.emit(response);
-        this.loading = false;
+        this.commitAsyncState(() => {
+          this.context = response;
+          this.selectedCompetenciaOptions = [{
+            id: String(response.competenciaId),
+            nombre: response.competenciaDescripcion,
+          }];
+          this.contextLoaded.emit(response);
+          this.loading = false;
+        });
       },
       error: (error: unknown) => {
-        this.apiError = this.apiErrorService.toDisplayError(error);
-        this.loading = false;
+        this.commitAsyncState(() => {
+          this.apiError = this.apiErrorService.toDisplayError(error);
+          this.loading = false;
+        });
       },
     });
   }
@@ -150,19 +156,23 @@ export class Curriculum implements OnInit, OnChanges {
       areas: this.catalogosService.areas(),
     }).subscribe({
       next: ({ niveles, areas }) => {
-        this.niveles = niveles;
-        this.areas = areas;
-        this.catalogsReady = true;
-        this.catalogLoading = false;
-        this.applyCatalogControlState();
-        if (this.hasSelected('nivelId')) {
-          this.loadGrados();
-        }
+        this.commitAsyncState(() => {
+          this.niveles = niveles;
+          this.areas = areas;
+          this.catalogsReady = true;
+          this.catalogLoading = false;
+          this.applyCatalogControlState();
+          if (this.hasSelected('nivelId')) {
+            this.loadGrados();
+          }
+        });
       },
       error: (error: unknown) => {
-        this.catalogError = this.apiErrorService.toDisplayError(error);
-        this.catalogLoading = false;
-        this.applyCatalogControlState();
+        this.commitAsyncState(() => {
+          this.catalogError = this.apiErrorService.toDisplayError(error);
+          this.catalogLoading = false;
+          this.applyCatalogControlState();
+        });
       },
     });
   }
@@ -177,20 +187,22 @@ export class Curriculum implements OnInit, OnChanges {
 
     this.catalogLoading = true;
     this.setControlDisabled('gradoId', true);
-    this.catalogosService.grados(nivelId).pipe(
-      finalize(() => {
-        this.catalogLoading = false;
-        this.applyCatalogControlState();
-      }),
-    ).subscribe({
+    this.catalogosService.grados(nivelId).subscribe({
       next: (grados) => {
-        if (this.numberOrNull('nivelId') !== nivelId) {
-          return;
-        }
-        this.grados = grados;
+        this.commitAsyncState(() => {
+          if (this.numberOrNull('nivelId') === nivelId) {
+            this.grados = grados;
+          }
+          this.catalogLoading = false;
+          this.applyCatalogControlState();
+        });
       },
       error: (error: unknown) => {
-        this.catalogError = this.apiErrorService.toDisplayError(error);
+        this.commitAsyncState(() => {
+          this.catalogError = this.apiErrorService.toDisplayError(error);
+          this.catalogLoading = false;
+          this.applyCatalogControlState();
+        });
       },
     });
   }
@@ -228,5 +240,12 @@ export class Curriculum implements OnInit, OnChanges {
       return;
     }
     control?.enable({ emitEvent: false });
+  }
+
+  private commitAsyncState(applyState: () => void): void {
+    setTimeout(() => {
+      applyState();
+      this.changeDetectorRef.detectChanges();
+    });
   }
 }

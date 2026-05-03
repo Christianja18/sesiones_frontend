@@ -116,7 +116,8 @@ export interface GenerateSesionRequest {
   nivelId: number;
   gradoId: number;
   areaId: number;
-  competenciaId: number;
+  competenciaId?: number;
+  competenciaIds: number[];
   tema: string;
   contexto: string;
   duracionMinutos: number;

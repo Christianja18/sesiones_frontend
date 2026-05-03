@@ -23,7 +23,7 @@
     <select formControlName="nivelId" (change)="onNivelChange()">
       <option value="">Seleccionar</option>
       @for (nivel of niveles; track nivel.id) {
-        <option [value]="nivel.id">{{ nivel.nombre }}</option>
+        <option value="{{ nivel.id }}">{{ nivel.nombre }}</option>
       }
     </select>
     @if (fieldInvalid('nivelId')) {
@@ -36,7 +36,7 @@
     <select formControlName="gradoId" (change)="onGradoChange()">
       <option value="">Seleccionar</option>
       @for (grado of grados; track grado.id) {
-        <option [value]="grado.id">{{ grado.nombre }}</option>
+        <option value="{{ grado.id }}">{{ grado.nombre }}</option>
       }
     </select>
     @if (fieldInvalid('gradoId')) {
@@ -49,7 +49,7 @@
     <select formControlName="areaId" (change)="onAreaChange()">
       <option value="">Seleccionar</option>
       @for (area of areas; track area.id) {
-        <option [value]="area.id">{{ area.nombre }}</option>
+        <option value="{{ area.id }}">{{ area.nombre }}</option>
       }
     </select>
     @if (fieldInvalid('areaId')) {
@@ -72,8 +72,8 @@
   </div>
 
   <div class="actions field-wide">
-    <button class="button primary" type="submit" [disabled]="loading || catalogLoading || !canSubmit()">
-      {{ loading ? 'Consultando...' : 'Obtener contexto' }}
+    <button class="button primary icon-only" type="submit" [disabled]="loading || !canSubmit()" [attr.aria-busy]="loading" aria-label="Obtener contexto" title="Obtener contexto">
+      <app-icon [name]="loading ? 'loader' : 'search'" />
     </button>
   </div>
 </form>
@@ -135,7 +135,7 @@
     </section>
 
     <section>
-      <h3>Desempenos</h3>
+      <h3>Desempeños</h3>
       @if (context.desempenos.length) {
         <ul class="reference-list">
           @for (item of context.desempenos; track item.id) {
@@ -143,7 +143,7 @@
           }
         </ul>
       } @else {
-        <p class="empty-state">Sin desempenos para la combinacion consultada.</p>
+        <p class="empty-state">Sin desempeños para la combinacion consultada.</p>
       }
     </section>
   </div>

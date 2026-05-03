@@ -10,12 +10,25 @@
 .picker-control {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
   gap: 0.5rem;
 }
 
-.picker-control input {
+.picker-control input,
+.picker-control textarea {
   color: var(--ink);
   background: var(--surface-muted);
+}
+
+.picker-control textarea {
+  min-height: 4.9rem;
+  line-height: 1.35;
+  overflow: auto;
+  resize: vertical;
+}
+
+.picker-control .button {
+  align-self: start;
 }
 
 .button.ghost {
@@ -31,18 +44,22 @@
   display: grid;
   place-items: center;
   padding: 1rem;
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: rgba(30, 37, 33, 0.42);
 }
 
 .search-frame {
   width: min(760px, 100%);
-  max-height: min(760px, 90dvh);
+  max-height: calc(100dvh - 2rem);
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 0.85rem;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 1rem;
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: var(--surface);
   box-shadow: 0 24px 60px rgba(25, 35, 29, 0.24);
 }
@@ -62,11 +79,13 @@
 .icon-button {
   width: 2.4rem;
   height: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-muted);
   color: var(--ink);
-  font-weight: 800;
 }
 
 .option-list {
@@ -74,13 +93,13 @@
   display: grid;
   align-content: start;
   gap: 0.5rem;
-  overflow: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
 }
 
 .option-row {
-  display: grid;
-  grid-template-columns: 4.25rem minmax(0, 1fr);
-  gap: 0.7rem;
+  display: block;
   align-items: start;
   min-height: 2.75rem;
   border: 1px solid var(--line);
@@ -99,17 +118,8 @@
   outline: none;
 }
 
-.option-id {
-  color: var(--accent-2);
-  font-weight: 800;
-}
-
 @media (max-width: 620px) {
   .picker-control {
-    grid-template-columns: 1fr;
-  }
-
-  .option-row {
     grid-template-columns: 1fr;
   }
 }

@@ -1,15 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Output, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { ApiErrorService } from '../../core/services/api-error.service';
 import { CreateDocenteRequest, DisplayApiError, DocenteResponse } from '../../core/models/api.models';
+import { AppIcon } from '../../shared/icon/icon';
 import { notBlankValidator } from '../../core/validators/form.validators';
 import { DocentesService } from './docentes.service';
 
 @Component({
   selector: 'app-docentes',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, AppIcon],
   templateUrl: './docentes.html',
   styleUrl: './docentes.css',
 })
@@ -19,6 +20,7 @@ export class Docentes {
   private readonly fb = inject(FormBuilder);
   private readonly docentesService = inject(DocentesService);
   private readonly apiErrorService = inject(ApiErrorService);
+  private readonly changeDetectorRef = inject(ChangeDetectorRef);
 
   readonly form = this.fb.group({
     nombre: ['', [Validators.required, notBlankValidator, Validators.minLength(3), Validators.maxLength(120)]],
@@ -46,13 +48,17 @@ export class Docentes {
     this.loading = true;
     this.docentesService.create(request).subscribe({
       next: (response) => {
-        this.result = response;
-        this.docenteCreated.emit(response);
-        this.loading = false;
+        this.commitAsyncState(() => {
+          this.result = response;
+          this.docenteCreated.emit(response);
+          this.loading = false;
+        });
       },
       error: (error: unknown) => {
-        this.apiError = this.apiErrorService.toDisplayError(error);
-        this.loading = false;
+        this.commitAsyncState(() => {
+          this.apiError = this.apiErrorService.toDisplayError(error);
+          this.loading = false;
+        });
       },
     });
   }
@@ -84,5 +90,12 @@ export class Docentes {
 
   private textValue(fieldName: string): string {
     return String(this.form.get(fieldName)?.value ?? '').trim();
+  }
+
+  private commitAsyncState(applyState: () => void): void {
+    setTimeout(() => {
+      applyState();
+      this.changeDetectorRef.detectChanges();
+    });
   }
 }

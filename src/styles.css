@@ -172,11 +172,25 @@ button:disabled {
 }
 
 .button {
+  min-width: 2.55rem;
   min-height: 2.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid transparent;
   border-radius: 8px;
-  padding: 0 0.9rem;
+  padding: 0 0.7rem;
   font-weight: 760;
+}
+
+.button.icon-only {
+  width: 2.55rem;
+  padding: 0;
+}
+
+.button.is-loading app-icon,
+.button[aria-busy="true"] app-icon {
+  pointer-events: none;
 }
 
 .button.primary {

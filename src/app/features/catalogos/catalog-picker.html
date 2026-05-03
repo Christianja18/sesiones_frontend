@@ -2,13 +2,20 @@
   <label class="field picker-field">
     <span>{{ label }}</span>
     <div class="picker-control">
-      <input type="text" [value]="selectionText()" disabled />
-      <button class="button secondary" type="button" [disabled]="disabled" (click)="openFrame()">
-        Buscar
+      <textarea
+        class="picker-summary"
+        [value]="selectionText()"
+        [rows]="multi ? 3 : 2"
+        readonly
+        [attr.aria-label]="label + ' seleccionados'"
+        [attr.aria-disabled]="disabled"
+      ></textarea>
+      <button class="button secondary icon-only" type="button" [disabled]="disabled" aria-label="Buscar" title="Buscar" (click)="openFrame()">
+        <app-icon name="search" />
       </button>
       @if (selectedOptions.length) {
-        <button class="button ghost" type="button" [disabled]="disabled" (click)="clearSelection()">
-          Limpiar
+        <button class="button ghost icon-only" type="button" [disabled]="disabled" aria-label="Limpiar" title="Limpiar" (click)="clearSelection()">
+          <app-icon name="trash" />
         </button>
       }
     </div>
@@ -22,7 +29,9 @@
             <p class="eyebrow">Busqueda</p>
             <h3>{{ label }}</h3>
           </div>
-          <button class="icon-button" type="button" aria-label="Cerrar" (click)="closeFrame()">X</button>
+          <button class="icon-button" type="button" aria-label="Cerrar" title="Cerrar" (click)="closeFrame()">
+            <app-icon name="close" />
+          </button>
         </header>
 
         <label class="field field-wide">
@@ -50,7 +59,6 @@
                 [class.selected]="isTempSelected(option)"
                 (click)="toggleOption(option)"
               >
-                <span class="option-id">{{ optionId(option) }}</span>
                 <span>{{ optionName(option) }}</span>
               </button>
             }
@@ -61,8 +69,12 @@
 
         @if (multi) {
           <footer class="search-frame-actions">
-            <button class="button secondary" type="button" (click)="closeFrame()">Cancelar</button>
-            <button class="button primary" type="button" (click)="applyMultiSelection()">Aplicar</button>
+            <button class="button secondary icon-only" type="button" aria-label="Cancelar" title="Cancelar" (click)="closeFrame()">
+              <app-icon name="close" />
+            </button>
+            <button class="button primary icon-only" type="button" aria-label="Aplicar" title="Aplicar" (click)="applyMultiSelection()">
+              <app-icon name="apply" />
+            </button>
           </footer>
         }
       </section>

@@ -38,11 +38,11 @@
     </label>
 
     <div class="actions field-wide">
-      <button class="button primary" type="submit" [disabled]="loading">
-        {{ loading ? 'Registrando...' : 'Registrar documento' }}
+      <button class="button primary icon-only" type="submit" [disabled]="loading" [attr.aria-busy]="loading" aria-label="Registrar documento" title="Registrar documento">
+        <app-icon [name]="loading ? 'loader' : 'save'" />
       </button>
-      <button class="button secondary" type="button" [disabled]="!result || processing" (click)="processCurrent()">
-        {{ processing ? 'Procesando...' : 'Procesar' }}
+      <button class="button secondary icon-only" type="button" [disabled]="!result || processing" [attr.aria-busy]="processing" aria-label="Procesar documento" title="Procesar documento" (click)="processCurrent()">
+        <app-icon [name]="processing ? 'loader' : 'process'" />
       </button>
     </div>
   </form>
@@ -56,8 +56,8 @@
           <small class="validation-message">Ingresa un ID numerico mayor a cero.</small>
         }
       </label>
-      <button class="button secondary" type="submit" [disabled]="lookupLoading">
-        {{ lookupLoading ? 'Consultando...' : 'Consultar' }}
+      <button class="button secondary icon-only" type="submit" [disabled]="lookupLoading" [attr.aria-busy]="lookupLoading" aria-label="Consultar documento" title="Consultar documento">
+        <app-icon [name]="lookupLoading ? 'loader' : 'search'" />
       </button>
     </form>
   </aside>
